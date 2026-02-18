@@ -7,198 +7,115 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DMZ">
 <meta name="theme-color" content="#000000">
-<title>DMZ: TACTICAL MAP v2.2</title>
+<title>DMZ: TACTICAL MAP v2.3</title>
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 
-<link rel="stylesheet" href="https://paolobellina-lab.github.io/dmz-app/style.css">
+<link rel="stylesheet" href="style.css">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-<style>
-    /* STILE MILITARE/DMZ */
-    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-    
-    body { margin: 0; padding: 0; background: #000; font-family: 'Share Tech Mono', 'Courier New', monospace; overflow: hidden; color: #0f0; }
-    
-    /* SCHERMATA LOGIN */
-    .full-screen-ui { position: absolute; top:0; left:0; width:100%; height:100%; background: radial-gradient(circle at center, #0a150a 0%, #000 100%); z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-    h1 { color: #fff; text-shadow: 0 0 15px #0f0, 0 0 5px #0f0; font-size: 36px; letter-spacing: 4px; margin-bottom: 5px; text-align: center; }
-    .version-tag { color: #0a0; font-size: 14px; margin-bottom: 20px; font-weight: bold; letter-spacing: 2px; }
-    
-    .status-label { font-size: 18px; font-weight: bold; margin-bottom: 20px; padding: 10px; border: 1px solid #f00; color: #f00; text-align: center; width: 80%; max-width: 300px; background: rgba(255,0,0,0.1); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
-    .status-label.running { border-color: #0f0; color: #0f0; background: rgba(0,255,0,0.1); }
-
-    .input-box { background: rgba(0, 20, 0, 0.8); border: 1px solid #0f0; color: #0f0; padding: 15px; margin: 8px; width: 80%; max-width: 300px; text-align: center; font-size: 16px; font-family: 'Share Tech Mono', monospace; text-transform: uppercase; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); transition: 0.3s; outline: none; }
-    .input-box:focus { background: rgba(0, 40, 0, 0.9); box-shadow: 0 0 10px #0f0; }
-    .input-box::placeholder { color: #050; }
-    
-    .btn-deploy { background: linear-gradient(135deg, #004400 0%, #001100 100%); color: #0f0; border: 1px solid #0f0; padding: 15px 40px; font-size: 18px; font-family: 'Share Tech Mono', monospace; cursor: pointer; margin-top: 15px; box-shadow: 0 0 10px rgba(0,255,0,0.2); transition: 0.2s; width: 80%; max-width: 300px; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); text-transform: uppercase; letter-spacing: 1px; }
-    .btn-deploy:active { background: #0f0; color: #000; box-shadow: 0 0 20px #0f0; }
-    .btn-deploy:disabled { background: #111; border-color: #333; color: #555; box-shadow: none; cursor: not-allowed; }
-
-    /* MAPPA */
-    #map { height: 100vh; width: 100vw; z-index: 1; background: #111; position: absolute; top:0; left:0; }
-    .rotated-east { transform: rotate(-90deg); transform-origin: center center; width: 100vh !important; height: 100vw !important; position: fixed !important; top: 50% !important; left: 50% !important; margin-top: -50vw !important; margin-left: -50vh !important; }
-
-    /* MARKER MINIMALI */
-    .base-marker-container { position:relative; width:30px; height:30px; display:flex; justify-content:center; align-items:center; }
-    .base-circle { background:rgba(255,255,0,0.9); border:2px solid #000; border-radius:50%; width:20px; height:20px; display:flex; justify-content:center; align-items:center; color:#000; font-family:'Share Tech Mono', sans-serif; font-weight:bold; font-size:10px; box-shadow:0 0 8px #ff0; }
-    .base-name { position:absolute; top:24px; width:120px; text-align:center; color:#ff0; font-size:10px; font-weight:bold; text-shadow:1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; letter-spacing:1px; white-space:nowrap; pointer-events: none; }
-    
-    .exfil-circle { background:rgba(0,255,255,0.9); border:2px solid #000; border-radius:50%; width:24px; height:24px; display:flex; justify-content:center; align-items:center; font-size:12px; box-shadow:0 0 8px #0ff; }
-    .exfil-name { position:absolute; top:28px; width:100px; text-align:center; color:#0ff; font-size:10px; font-weight:bold; text-shadow:1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; pointer-events: none; }
-
-    #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 255, 0, 0.6); font-size: 30px; font-weight: bold; z-index: 1000; pointer-events: none; text-shadow: 0 0 5px #000; display: none; font-family: sans-serif; }
-
-    /* EFFETTI A SCHERMO */
-    #gas-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(200, 0, 255, 0.15); z-index: 999; display: none; pointer-events: none; box-shadow: inset 0 0 100px rgba(200,0,255,0.9); }
-    #cuav-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(0deg, rgba(0, 50, 0, 0.1), rgba(0, 50, 0, 0.1) 2px, transparent 2px, transparent 4px); backdrop-filter: blur(8px) grayscale(100%); z-index: 999; display: none; pointer-events: none; }
-    #emp-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050000; z-index: 5000; display: none; flex-direction: column; justify-content: center; align-items: center; color: #f00; font-family: monospace; font-size: 24px; font-weight: bold; text-align: center; text-shadow: 0 0 20px #f00; }
-    #revive-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 40, 0, 0.95); z-index: 6000; display: none; flex-direction: column; justify-content: center; align-items: center; color: #0f0; font-family: 'Share Tech Mono', monospace; font-size: 24px; text-align: center; text-shadow: 0 0 15px #0f0; }
-
-    /* HUD SUPERIORE */
-    #hud-top-container { position: absolute; top: 0; left: 0; width: 100%; z-index: 1000; display: flex; flex-direction: column; pointer-events: none; }
-    #obj-banner { width: 100%; background: rgba(0, 15, 0, 0.85); border-bottom: 2px solid #0f0; padding: 10px 0; color: #0f0; font-weight: bold; font-size: 16px; text-shadow: 0 0 8px #0f0; text-align: center; letter-spacing: 1px; backdrop-filter: blur(5px); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-    #hud-sub-top { display: flex; justify-content: space-between; padding: 10px; width: calc(100% - 20px); }
-    .hud-box { background: rgba(0, 20, 0, 0.7); border: 1px solid #0f0; padding: 6px 12px; color: #0f0; font-size: 12px; text-shadow: 0 0 5px #0f0; backdrop-filter: blur(4px); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); box-shadow: 0 0 5px rgba(0,255,0,0.2); }
-    .hud-economy { background: linear-gradient(135deg, rgba(0,40,0,0.9) 0%, rgba(0,15,0,0.9) 100%); cursor: pointer; pointer-events: auto; font-size: 14px; font-weight: bold; }
-
-    /* FEED DEGLI EVENTI (COMBAT LOG) */
-    #combat-log { position: absolute; top: 120px; right: 10px; width: 65%; max-width: 280px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end; z-index: 1000; pointer-events: none; }
-    .log-entry { background: rgba(0, 15, 0, 0.85); border-right: 3px solid #0f0; color: #fff; padding: 6px 10px; font-size: 11px; font-family: 'Share Tech Mono', monospace; text-shadow: 0 0 3px #000; clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px); animation: slideIn 0.4s ease-out; backdrop-filter: blur(2px); text-align: right; }
-    .log-entry span.time { color: #0ff; margin-right: 5px; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
-
-    /* HUD LATERALE E INFERIORE */
-    #hud-status { position: absolute; top: 110px; left: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-    .btn-status { background: rgba(0,10,0,0.8); border: 1px solid #555; color: #fff; padding: 10px; font-family: 'Share Tech Mono', monospace; font-size: 12px; cursor: pointer; text-align: left; transition: 0.2s; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); backdrop-filter: blur(4px); pointer-events: auto; }
-    .btn-status:active { transform: scale(0.95); }
-
-    #hud-bottom { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; gap: 20px; pointer-events: auto; }
-    .action-btn { background: rgba(0,20,0,0.85); border: 2px solid #0f0; color: #0f0; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; font-size: 24px; cursor: pointer; backdrop-filter: blur(5px); box-shadow: 0 0 15px rgba(0,255,0,0.3); transition: 0.2s; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); }
-    .action-btn:active { background: #0f0; color: #000; transform: scale(0.9); box-shadow: 0 0 25px #0f0; }
-    .action-btn.btn-scanner { border-color: #0ff; color: #0ff; box-shadow: 0 0 15px rgba(0,255,255,0.4); }
-    .action-btn.btn-scanner:active { background: #0ff; color: #000; }
-
-    /* MODALS */
-    .game-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 15, 0, 0.95); backdrop-filter: blur(8px); z-index: 3000; display: none; flex-direction: column; justify-content: center; align-items: center; border: 2px solid #0f0; box-sizing: border-box; }
-    .modal-title { color: #0ff; font-size: 26px; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 15px #0ff; letter-spacing: 2px; text-transform: uppercase; text-align:center;}
-    .modal-desc { color: #0a0; font-size: 13px; margin-bottom: 20px; text-align: center; width: 85%; line-height: 1.4; }
-    .btn-close-modal { background: transparent; color: #fff; border: 1px solid #f00; padding: 12px 25px; font-size: 16px; margin-top: 25px; cursor: pointer; font-family: 'Share Tech Mono', monospace; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); transition: 0.2s; text-transform: uppercase; }
-    .btn-close-modal:active { background: #f00; color: #000; box-shadow: 0 0 15px #f00; }
-
-    #qr-reader { width: 100%; max-width: 350px; border: 2px solid #0ff; margin-bottom: 15px; background: #000; box-shadow: 0 0 20px rgba(0,255,255,0.2); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); }
-
-    .shop-item { display:flex; justify-content:space-between; align-items:center; background:rgba(0,30,0,0.6); border:1px solid #0aa; padding:12px; margin-bottom:8px; width:90%; max-width:350px; color:#fff; font-size:14px; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
-    .shop-btn { background:rgba(0,80,0,0.8); border:1px solid #0f0; color:#0f0; padding:6px 12px; cursor:pointer; font-family: 'Share Tech Mono', monospace; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); transition: 0.2s; }
-    .shop-btn:active { background: #0f0; color: #000; }
-    .bp-item { display:flex; flex-direction:column; background:rgba(0,20,0,0.8); border:1px dashed #0f0; padding:12px; margin-bottom:8px; width:90%; max-width:350px; color:#fff; font-size:14px; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
-    
-    .locker-panel { flex: 1; border: 1px solid #0aa; background: rgba(0,15,15,0.8); display: flex; flex-direction: column; overflow-y: auto; padding: 8px; height: 350px; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); }
-    .locker-panel h3 { margin: 0 0 10px 0; color: #0ff; font-size: 14px; text-align: center; border-bottom: 1px solid #0aa; padding-bottom: 5px; letter-spacing: 1px; }
-    .locker-item { background: rgba(0,0,0,0.6); border: 1px solid #0aa; padding: 10px; margin-bottom: 5px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #ddd; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
-    .locker-btn { background: rgba(0,80,80,0.8); border: 1px solid #0ff; color: #0ff; padding: 5px 10px; cursor: pointer; font-family: 'Share Tech Mono', monospace; font-size: 10px; clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px); transition: 0.2s;}
-    .locker-btn:active { background: #0ff; color: #000; }
-
-    /* STILE MARKER E PING */
-    .teammate-label { background: rgba(0,0,0,0.7); color: #fff; font-family: sans-serif; font-weight: bold; border-radius: 3px; padding: 2px 4px; font-size: 10px; margin-top: -38px; text-align: center; width: 100px; margin-left: -42px; border: 1px solid #555; pointer-events: none; }
-    .ping-icon { background: rgba(255, 0, 0, 0.8); border: 2px solid #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 14px; box-shadow: 0 0 15px #f00; animation: ping-pulse 1s infinite; }
-    @keyframes ping-pulse { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
-
-    #targeting-overlay { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); background: rgba(255,0,0,0.85); color: white; padding: 15px 25px; border: 1px solid #f00; z-index: 2000; display: none; text-align: center; pointer-events: none; box-shadow: 0 0 30px #f00; font-size: 14px; letter-spacing: 1px; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); backdrop-filter: blur(5px); }
-</style>
 </head>
 <body>
 
 <div id="login-screen" class="full-screen-ui">
     <h1>DMZ: DEPLOY</h1>
-    <div class="version-tag">PLAYER TERMINAL v2.2</div>
+    <div class="version-tag">PLAYER TERMINAL v2.3</div>
     
     <div id="status-label" class="status-label">CONNESSIONE...</div>
     
-    <input type="text" id="p-name" class="input-box" placeholder="NOME (es: VIPER)">
+    <input type="text" id="p-name" class="input-box" placeholder="NOME SULLA PATCH">
     <select id="p-team" class="input-box">
-        <option value="ALPHA">SQUADRA ALPHA</option><option value="BRAVO">SQUADRA BRAVO</option>
-        <option value="CHARLIE">SQUADRA CHARLIE</option><option value="DELTA">SQUADRA DELTA</option>
-        <option value="ECHO">SQUADRA ECHO</option><option value="FOXTROT">SQUADRA FOXTROT</option>
+        <option value="ALPHA">SQUADRA ALPHA</option><option value="BRAVO">SQUADRA BRAVO</option><option value="CHARLIE">SQUADRA CHARLIE</option><option value="DELTA">SQUADRA DELTA</option>
+        <option value="ECHO">SQUADRA ECHO</option><option value="FOXTROT">SQUADRA FOXTROT</option><option value="GOLF">SQUADRA GOLF</option><option value="HOTEL">SQUADRA HOTEL</option>
+        <option value="INDIA">SQUADRA INDIA</option><option value="JULIET">SQUADRA JULIET</option><option value="KILO">SQUADRA KILO</option><option value="LIMA">SQUADRA LIMA</option>
+        <option value="MIKE">SQUADRA MIKE</option><option value="NOVEMBER">SQUADRA NOVEMBER</option><option value="OSCAR">SQUADRA OSCAR</option><option value="PAPA">SQUADRA PAPA</option>
+        <option value="QUEBEC">SQUADRA QUEBEC</option><option value="ROMEO">SQUADRA ROMEO</option><option value="SIERRA">SQUADRA SIERRA</option><option value="TANGO">SQUADRA TANGO</option>
+        <option value="UNIFORM">SQUADRA UNIFORM</option><option value="VICTOR">SQUADRA VICTOR</option><option value="WHISKEY">SQUADRA WHISKEY</option><option value="XRAY">SQUADRA X-RAY</option>
+        <option value="YANKEE">SQUADRA YANKEE</option><option value="ZULU">SQUADRA ZULU</option>
     </select>
     
-    <div id="start-gear-selection" style="display:none; width:80%; max-width:300px; margin-top:15px; border:1px solid #0cf; padding:15px; background:rgba(0, 20, 30, 0.8); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);">
-        <div style="color:#0cf; font-size:14px; font-weight:bold; margin-bottom:15px; text-align:center; letter-spacing:1px;" id="start-gear-title">SELEZIONA EQUIP.</div>
+    <div id="start-gear-selection" style="display:none; width:80%; max-width:300px; margin-top:15px; border:1px solid #0cf; padding:15px; background:rgba(0, 20, 30, 0.8);">
+        <div style="color:#0cf; font-size:14px; font-weight:bold; margin-bottom:15px; text-align:center;">SELEZIONA EQUIP.</div>
         <div id="start-gear-options" style="display:flex; flex-direction:column; gap:8px; max-height:120px; overflow-y:auto;"></div>
     </div>
 
     <button class="btn-deploy" style="background:linear-gradient(135deg, #003344 0%, #001122 100%); border-color:#0cf; box-shadow: 0 0 10px rgba(0,255,255,0.3); margin-top:10px; color:#0cf;" onclick="openStash()">🏦 ACCEDI AL MAGAZZINO</button>
-
-    <div id="deploy-help" style="color:#ff0; font-size:12px; margin-top:15px; letter-spacing:1px;">Attendi l'avvio della partita dal Comando.</div>
+    <div id="deploy-help" style="color:#ff0; font-size:12px; margin-top:15px;">Attendi l'avvio della partita dal Comando.</div>
     <button id="btn-deploy" class="btn-deploy" onclick="deploy()" style="display:none;">DISPIEGAMENTO</button>
 </div>
 
 <div id="stash-modal" class="game-modal">
-    <div class="modal-title" style="color:#0cf; text-shadow:0 0 10px #0cf;">MAGAZZINO SEGRETO</div>
+    <div class="modal-title" style="color:#0cf;">MAGAZZINO SEGRETO</div>
     <div style="display:flex; width:95%; max-width: 400px; gap:10px; height: 50%;">
-        <div class="locker-panel" style="border-color:#0cf;"><h3 style="color:#0cf; border-color:#0cf;">STASH (Rifugio)</h3><div id="stash-money-box" style="margin-bottom:10px; padding:5px; background:rgba(0,30,30,0.8); border:1px solid #0cf; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);"></div><div id="stash-items-box"></div></div>
-        <div class="locker-panel"><h3 style="color:#8f8; border-color:#8f8;">LOADOUT (Da Portare)</h3><div id="stash-loadout-money" style="margin-bottom:10px; padding:5px; background:rgba(0,40,0,0.8); border:1px solid #0f0; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);"></div><div id="stash-loadout-items"></div></div>
+        <div class="locker-panel" style="border-color:#0cf;"><h3 style="color:#0cf;">STASH</h3><div id="stash-money-box" style="margin-bottom:10px; padding:5px; background:rgba(0,30,30,0.8); border:1px solid #0cf;"></div><div id="stash-items-box"></div></div>
+        <div class="locker-panel"><h3 style="color:#8f8;">LOADOUT</h3><div id="stash-loadout-money" style="margin-bottom:10px; padding:5px; background:rgba(0,40,0,0.8); border:1px solid #0f0;"></div><div id="stash-loadout-items"></div></div>
     </div>
     <button class="btn-close-modal" style="border-color:#0cf;" onclick="closeStash()">CHIUDI E SALVA</button>
 </div>
 
 <div id="scanner-modal" class="game-modal">
     <div class="modal-title">SCANSIONE OTTICA</div>
-    <div id="qr-reader"></div>
+    <div id="qr-reader-container" style="width: 100%; max-width: 350px; min-height: 250px; background: #000; border: 2px solid #0ff; margin-bottom:15px; display:flex; justify-content:center; align-items:center;">
+        <div id="qr-reader" style="width: 100%;"></div>
+    </div>
     <div style="display:flex; width: 90%; max-width: 350px; gap: 5px; margin-top: 15px;">
         <input type="text" id="manual-code-input" class="input-box" placeholder="ES: B5" style="width:70%; font-size:18px; border-color:#0ff; color:#0ff; margin:0;">
-        <button class="btn-deploy" style="width:30%; background:linear-gradient(135deg, #004444 0%, #001111 100%); border-color:#0ff; box-shadow: 0 0 10px rgba(0,255,255,0.4); margin:0; padding:10px;" onclick="processScannedCode()">INVIA</button>
+        <button class="btn-deploy" style="width:30%; background:linear-gradient(135deg, #004444 0%, #001111 100%); border-color:#0ff; margin:0; padding:10px;" onclick="processScannedCode()">INVIA</button>
     </div>
     <button class="btn-close-modal" onclick="closeScanner()">ANNULLA SCANSIONE</button>
 </div>
 
 <div id="player-action-modal" class="game-modal">
-    <div class="modal-title" style="color:#fff; text-shadow:0 0 10px #fff;">OPERATORE RILEVATO</div>
-    <div class="modal-desc" id="pam-desc" style="color:#aaa; font-size:14px; margin-bottom:30px;">Scegli l'azione tattica.</div>
+    <div class="modal-title" style="color:#fff;">OPERATORE RILEVATO</div>
+    <div class="modal-desc" id="pam-desc" style="color:#aaa;"></div>
     <button class="btn-deploy" style="background:linear-gradient(135deg, #005500 0%, #002200 100%); border-color:#0f0; width:90%; max-width:300px; margin-bottom:15px;" onclick="executePlayerAction('REVIVE')">💉 RIANIMA E ASSIMILA</button>
     <button class="btn-deploy" style="background:linear-gradient(135deg, #550000 0%, #220000 100%); border-color:#f00; width:90%; max-width:300px;" onclick="executePlayerAction('LOOT')">🎒 DEPREDA ZAINO</button>
     <button class="btn-close-modal" style="border-color:#555; color:#aaa; margin-top:40px;" onclick="closePlayerAction()">ANNULLA</button>
 </div>
 
 <div id="locker-modal" class="game-modal">
-    <div class="modal-title" id="locker-title" style="color:#e6b800; text-shadow:0 0 10px #e6b800;">CONTENITORE</div>
+    <div class="modal-title" id="locker-title" style="color:#e6b800;">CONTENITORE</div>
     <div style="display:flex; width:95%; max-width: 400px; gap:10px; height: 60%;">
-        <div class="locker-panel"><h3 id="locker-left-title" style="color:#e6b800; border-color:#e6b800;">CONTENUTO</h3><div id="locker-money-box" style="margin-bottom:10px; padding:5px; background:rgba(40,30,0,0.8); border:1px solid #e6b800; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);"></div><div id="locker-items-box"></div></div>
-        <div class="locker-panel"><h3 style="color:#8f8; border-color:#8f8;">IL TUO ZAINO</h3><div id="locker-backpack-box"></div></div>
+        <div class="locker-panel"><h3 id="locker-left-title" style="color:#e6b800;">CONTENUTO</h3><div id="locker-money-box" style="margin-bottom:10px; padding:5px; background:rgba(40,30,0,0.8); border:1px solid #e6b800;"></div><div id="locker-items-box"></div></div>
+        <div class="locker-panel"><h3 style="color:#8f8;">ZAINO</h3><div id="locker-backpack-box"></div></div>
     </div>
     <button class="btn-close-modal" style="border-color:#e6b800;" onclick="closeLocker()">CHIUDI SPORTELLO</button>
 </div>
 
 <div id="shop-modal" class="game-modal">
-    <div class="modal-title" style="color:#0aa; text-shadow:0 0 10px #0aa;">MERCATO NERO</div>
-    <div id="shop-items-container" style="width:100%; display:flex; flex-direction:column; align-items:center; overflow-y:auto; max-height:60%;"></div>
+    <div class="modal-title" style="color:#0aa;">MERCATO NERO</div>
+    <div style="display:flex; width:95%; max-width:400px; gap:10px; height:60%;">
+        <div class="locker-panel" style="border-color:#0aa;"><h3 style="color:#0aa;">COMPRA</h3><div id="shop-items-container" style="display:flex; flex-direction:column; gap:5px;"></div></div>
+        <div class="locker-panel" style="border-color:#f00;"><h3 style="color:#f00;">VENDI ZAINO (50%)</h3><div id="shop-sell-container" style="display:flex; flex-direction:column; gap:5px;"></div></div>
+    </div>
     <button class="btn-close-modal" style="border-color:#0aa;" onclick="closeShop()">ESCI DAL NEGOZIO</button>
 </div>
 
 <div id="backpack-modal" class="game-modal">
-    <div class="modal-title" style="color:#8f8; text-shadow:0 0 10px #8f8;">IL TUO ZAINO</div>
+    <div class="modal-title" style="color:#8f8;">IL TUO ZAINO</div>
     <div id="bp-items-container" style="width:100%; display:flex; flex-direction:column; align-items:center; overflow-y:auto; max-height:60%;"></div>
     <button class="btn-close-modal" style="border-color:#8f8;" onclick="closeBackpack()">CHIUDI ZAINO</button>
 </div>
 
 <div id="revive-overlay">
-    🏥 RIANIMAZIONE IN CORSO...<br><br><span id="revive-timer" style="font-size: 60px; color:#fff;">10</span>s<br><br>
+    🏥 RIANIMAZIONE...<br><br><span id="revive-timer" style="font-size: 60px; color:#fff;">10</span>s<br><br>
     <button class="btn-deploy" style="background:#500; border-color:#f00; margin-top:40px;" onclick="cancelRevive()">INTERROMPI</button>
 </div>
 
-<div id="emp-overlay">⚠️ ERRORE CRITICO ⚠️<br><br>IMPULSO ELETROMAGNETICO<br>RILEVATO</div>
+<div id="emp-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050000; z-index: 5000; display: none; flex-direction: column; justify-content: center; align-items: center; color: #f00; font-family: monospace; font-size: 24px; font-weight: bold; text-align: center; text-shadow: 0 0 20px #f00;">⚠️ ERRORE CRITICO ⚠️<br><br>IMPULSO ELETROMAGNETICO</div>
+
 <div id="map"></div>
 <div id="gas-overlay"></div>
 <div id="cuav-overlay"></div>
 <div id="crosshair">✛</div>
-<div id="targeting-overlay">⬇ CLICCA SULLA MAPPA PER LANCIARE L'ATTACCO AEREO ⬇</div>
+<div id="targeting-overlay" style="display:none; z-index:2000; position:absolute; top:120px; left:50%; transform:translateX(-50%); background:rgba(255,0,0,0.85); color:#fff; padding:15px; border:1px solid #f00;">⬇ CLICCA SULLA MAPPA PER LANCIARE L'ATTACCO AEREO ⬇</div>
 
 <div id="hud-top-container" style="display:none;">
     <div id="obj-banner">OBIETTIVO: SOPRAVVIVENZA</div>
+    <div id="team-banner">SQUADRA: <span id="team-name-hud" style="font-weight:bold;">...</span> | OP: <span id="team-list-hud" style="color:#0f0;">...</span></div>
     <div id="hud-sub-top">
         <div class="hud-box" id="gps-status" style="color:#0ff; border-color:#0ff;">GPS: RICERCA...</div>
         <div id="hud-economy-box" class="hud-box hud-economy" style="display:none;" onclick="openBackpack()">
@@ -252,6 +169,7 @@
     let isDeployed = false, bleedoutTimer = null, localUAVActive = false, isTargetingAirstrike = false;
     let myContract = null, exfilTimerEnd = null; window.bleedoutEndTime = null; let isMapRotated = false;
     let globalSettings = { status: 'lobby' }; let activeStreaks = {};
+    let masterRareLootPool = [ { name: "CHIAVE UNIVERSALE", chance: 30, value: 5000, enabled: true }, { name: "LINGOTTO D'ORO", chance: 30, value: 8000, enabled: true }, { name: "ATTACCO AEREO", chance: 20, value: 8000, enabled: true }, { name: "UAV DI DISTURBO", chance: 20, value: 2500, enabled: true } ];
 
     window.logEvent = function(msg) { push(ref(db, 'dmz_logs'), { msg: msg, timestamp: Date.now() }); };
 
@@ -350,9 +268,8 @@
     window.closeLocker = function() { document.getElementById('locker-modal').style.display = 'none'; currentLockerCode = null; currentLockerData = null; };
 
     function generateLockerContent(isRare) {
-        let money = 0, items = []; let pMoney = globalSettings.lockers_config.moneyPool; 
-        let defaultRarePool = [ { name: "CHIAVE UNIVERSALE", chance: 30, value: 5000, enabled: true }, { name: "LINGOTTO D'ORO", chance: 30, value: 8000, enabled: true }, { name: "ATTACCO AEREO", chance: 20, value: 8000, enabled: true }, { name: "UAV DI DISTURBO", chance: 20, value: 2500, enabled: true } ];
-        let pItems = isRare ? defaultRarePool : (globalSettings.lockers_config.pool || []);
+        let money = 0, items = []; let pMoney = globalSettings.lockers_config ? globalSettings.lockers_config.moneyPool : []; 
+        let pItems = isRare ? masterRareLootPool : (globalSettings.lockers_config ? globalSettings.lockers_config.pool : []);
         
         if (globalSettings.economy_active && pMoney && pMoney.length > 0) { let rM = Math.random() * 100, cM = 0; for(let m of pMoney) { cM += m.chance; if(rM <= cM){ money = m.amount; break; } } }
         if (pItems && pItems.length > 0) { let rI = Math.random() * 100, cI = 0; for(let i of pItems) { cI += i.chance; if(rI <= cI){ if(i.name !== "VUOTO") { let newItem = { ...i }; if (newItem.name.includes("CHIAVE")) newItem.uses = 3; items.push(newItem); } break; } } }
@@ -392,7 +309,8 @@
     };
 
     function consumeKey(targetCode) {
-        if (!globalSettings.keys_active) return true; 
+        if (!globalSettings.keys_lockers && targetCode.startsWith('A')) return true; 
+        if (!globalSettings.keys_bases && targetCode.startsWith('B')) return true; 
         let targetKeyName = `CHIAVE ${targetCode}`; let specificIdx = myBackpack.findIndex(i => i.name === targetKeyName); let univIdx = myBackpack.findIndex(i => i.name === "CHIAVE UNIVERSALE"); let idxToUse = specificIdx > -1 ? specificIdx : univIdx;
         if (idxToUse > -1) {
             let key = myBackpack[idxToUse]; if (key.uses === undefined) key.uses = 3;
@@ -428,7 +346,7 @@
     };
     window.cancelRevive = function() { if (window.reviveInterval) clearInterval(window.reviveInterval); document.getElementById('revive-overlay').style.display = 'none'; };
 
-    // FOTOCAMERA FIX V35
+    // V2.2 - FIX DEFINITIVO FOTOCAMERA (STILE V35 SICURO)
     let html5QrCode = null;
     
     window.openScanner = function() { 
@@ -438,30 +356,36 @@
         document.getElementById('scanner-modal').style.display = 'flex'; 
         document.getElementById('manual-code-input').value = ""; 
         
-        html5QrCode = new Html5Qrcode("qr-reader"); 
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            { fps: 10, qrbox: { width: 250, height: 250 } }, 
-            (decodedText) => { 
-                if (html5QrCode && html5QrCode.isScanning) { 
-                    html5QrCode.stop().then(() => { 
-                        html5QrCode.clear();
-                        document.getElementById('manual-code-input').value = decodedText; 
-                        window.processScannedCode(); 
-                    }).catch(()=>{}); 
-                } 
-            }, 
-            (errorMessage) => { /* ignora errori di fuoco/luce temporanei */ }
-        ).catch((err) => { 
-            document.getElementById('qr-reader').innerHTML = `<div style="color:red; padding:20px; text-align:center;">Fotocamera non disponibile.<br>Assicurati di essere su HTTPS e aver dato i permessi.</div>`; 
-        });
+        setTimeout(() => {
+            if(window.html5QrCode) return; 
+            
+            window.html5QrCode = new Html5Qrcode("qr-reader"); 
+            window.html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 10, qrbox: { width: 250, height: 250 } }, 
+                (decodedText) => { 
+                    if (window.html5QrCode && window.html5QrCode.isScanning) { 
+                        window.html5QrCode.stop().then(() => { 
+                            window.html5QrCode.clear();
+                            window.html5QrCode = null;
+                            document.getElementById('manual-code-input').value = decodedText; 
+                            window.processScannedCode(); 
+                        }).catch(()=>{}); 
+                    } 
+                }, 
+                (err) => {  }
+            ).catch((err) => { 
+                document.getElementById('qr-reader').innerHTML = `<div style="color:red; padding:20px; text-align:center;">Fotocamera non disponibile.<br>Usa l'inserimento manuale qui sotto.</div>`; 
+            });
+        }, 200);
     };
     
     window.closeScanner = function() { 
         document.getElementById('scanner-modal').style.display = 'none'; 
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().then(() => {
-                html5QrCode.clear();
+        if (window.html5QrCode && window.html5QrCode.isScanning) {
+            window.html5QrCode.stop().then(() => {
+                window.html5QrCode.clear();
+                window.html5QrCode = null;
             }).catch(()=>{}); 
         }
     };
@@ -470,9 +394,27 @@
         let code = document.getElementById('manual-code-input').value.trim().toUpperCase(); if(!code) return; closeScanner();
         
         if (code.startsWith('A')) {
-            if (!globalSettings.lockers_config || !globalSettings.lockers_config.enabled) return alert("Armadietti disattivati.");
-            let isRare = globalSettings.keys_lockers;
+            let isRare = globalSettings.keys_lockers ? true : false;
             if (isRare) { if (!consumeKey(code)) return; }
+            
+            // LOGICA CONTRATTI A ZONA (NUKE / INTEL)
+            if (myContract && (myContract.type === 'INTEL' || myContract.type === 'NUKE') && myContract.state === 'FETCH') {
+                let expectedBaseNum = myContract.targetId.replace('B', ''); // Se target è B5, si aspetta la cassa A5
+                let scannedBoxNum = code.replace('A', '');
+                if (expectedBaseNum === scannedBoxNum) {
+                    if(myBackpack.length >= 5) return alert("Devi avere 1 slot libero nello zaino!");
+                    if(myContract.type === 'NUKE') {
+                        alert("Materiale Nucleare recuperato dalla cassa! Estrai in sicurezza (C/E)!");
+                        myBackpack.push({name: "BARRE DI URANIO", value: 12000}); logEvent(`☢️ Materiale nucleare messo in sicurezza.`);
+                    } else {
+                        alert("Dati Segreti recuperati dalla cassa! Estrai in sicurezza (C/E)!");
+                        myBackpack.push({name: "DATI SEGRETI", value: 8000}); logEvent(`💾 Dati recuperati nella zona.`);
+                    }
+                    myContract.state = 'DELIVER'; updateEconomyHUD(); 
+                    if(window.contractCircle) { map.removeLayer(window.contractCircle); window.contractCircle = null; } return;
+                }
+            }
+            
             get(ref(db, `dmz_lockers/${code}`)).then((snap) => { let lockerData = snap.val(); if (!lockerData) { lockerData = generateLockerContent(isRare); update(ref(db, `dmz_lockers/${code}`), lockerData); } openLockerUI(code, lockerData, 'LOCKER'); });
         } 
         else if (code.startsWith('B')) {
@@ -480,21 +422,8 @@
             if (globalSettings.keys_bases) { if (!consumeKey(code)) return; }
             
             if (myContract) {
-                if (myContract.type === 'NUKE' && myContract.targetId === code && myContract.state === 'FETCH') {
-                    if(myBackpack.length >= 5) return alert("Devi avere 1 slot libero per l'URANIO!"); alert("Materiale Nucleare recuperato! Estrai in sicurezza!");
-                    myBackpack.push({name: "BARRE DI URANIO", value: 12000}); myContract.state = 'DELIVER'; updateEconomyHUD(); logEvent(`☢️ Materiale nucleare messo in sicurezza.`);
-                    if(window.contractCircle) { map.removeLayer(window.contractCircle); window.contractCircle = null; } return;
-                }
-                if (myContract.type === 'INTEL' && myContract.targetId === code && myContract.state === 'FETCH') {
-                    if(myBackpack.length >= 5) return alert("Devi avere 1 slot libero per i DATI SEGRETI!"); alert("Dati Segreti recuperati! Estrai (C/E)!");
-                    myBackpack.push({name: "DATI SEGRETI", value: 8000}); myContract.state = 'DELIVER'; updateEconomyHUD(); logEvent(`💾 Dati recuperati in ${baseExists.name}.`); 
-                    if(window.contractCircle) { map.removeLayer(window.contractCircle); window.contractCircle = null; } return;
-                }
-                if (myContract.type === 'DESTROY' && myContract.targetId === code && myContract.state === 'GOTO') { 
-                    alert("Bomba innescata! Difendete per 7 minuti."); myContract.state = 'ARMED'; myContract.endTime = Date.now() + (7 * 60000); logEvent(`💣 SQUADRA ${myTeam} ha innescato ordigno in ${baseExists.name}.`); 
-                    if(window.contractCircle) { map.removeLayer(window.contractCircle); window.contractCircle = null; } return; 
-                }
-                return alert("Hai già un altro contratto in corso.");
+                if (myContract.type === 'DESTROY' && myContract.targetId === code && myContract.state === 'GOTO') { alert("Bomba innescata! Difendete per 7 minuti."); myContract.state = 'ARMED'; myContract.endTime = Date.now() + (7 * 60000); logEvent(`💣 SQUADRA ${myTeam} ha innescato ordigno in ${baseExists.name}.`); return; }
+                return alert("Hai già un altro contratto in corso. O devi cercare nelle CASSE (A) in questa zona!");
             }
             if (globalSettings.contracts_config && globalSettings.contracts_config.enabled) {
                 let pool = globalSettings.contracts_config.pool;
@@ -512,10 +441,10 @@
                         else if (randomContract === 'HUNT') {
                             get(ref(db, 'dmz_players')).then((snap) => {
                                 let players = snap.val() || {}; let enemies = Object.keys(players).filter(k => players[k].team !== myTeam && players[k].status === 'active');
-                                if (enemies.length === 0) return alert("Nessun nemico vivo in campo.");
+                                if (enemies.length === 0) return alert("Nessun nemico vivo in campo per la caccia.");
                                 let target = enemies[Math.floor(Math.random() * enemies.length)];
                                 myContract = { type: 'HUNT', targetId: target, state: 'HUNTING', endTime: Date.now() + (5 * 60000) }; alert(`Contratto accettato! Dai la caccia alla SQUADRA ${players[target].team}. Guarda la mappa!`);
-                                logEvent(`🎯 CACCIA ALLA SQUADRA contro la ${players[target].team}.`);
+                                logEvent(`🎯 CACCIA ALLA SQUADRA avviata contro la ${players[target].team}.`);
                             });
                         }
                     }
@@ -524,9 +453,11 @@
         } 
         else if (code.startsWith('C') || code.startsWith('E')) {
             if (globalSettings.exfil_config && globalSettings.exfil_config.enabled) {
+                let isValidExfil = currentExfilPoints.some(ex => (ex.id === code) || (ex.label && ex.label.includes(code)));
+                if (!isValidExfil && globalSettings.exfil_config.position === 'random') return alert(`Il punto ${code} non è un'estrazione attiva in questa partita!`);
                 if(exfilTimerEnd) return alert("Hai già chiamato un elicottero!");
                 let waitMins = globalSettings.exfil_config.waitTime || 0;
-                if(waitMins > 0) { exfilTimerEnd = Date.now() + (waitMins * 60000); alert(`Elicottero in arrivo! Difendi l'area per ${waitMins} minuti.`); update(push(ref(db, 'dmz_pings')), { team: myTeam, lat: myMarker.getLatLng().lat, lng: myMarker.getLatLng().lng, sender: "ELICOTTERO CHIAMATO", timestamp: Date.now() }); logEvent(`🚁 ELICOTTERO richiesto.`); } else { doExfil(); }
+                if(waitMins > 0) { exfilTimerEnd = Date.now() + (waitMins * 60000); alert(`Elicottero in arrivo a ${code}! Difendi l'area per ${waitMins} minuti.`); update(push(ref(db, 'dmz_pings')), { team: myTeam, lat: myMarker.getLatLng().lat, lng: myMarker.getLatLng().lng, sender: "ELICOTTERO CHIAMATO", timestamp: Date.now() }); logEvent(`🚁 ELICOTTERO richiesto al punto ${code}.`); } else { doExfil(); }
             } else alert("Elicottero non disponibile.");
         } 
         else if (code.startsWith('D')) {
@@ -561,9 +492,9 @@
             let stash = snap.val() || { cash: 0, items: [] }; stash.cash += myCash; if(!stash.items) stash.items = []; stash.items = stash.items.concat(myBackpack);
             update(ref(db, 'dmz_stash/' + safeName), stash).then(() => {
                 myCash = 0; myBackpack = []; updateEconomyHUD();
-                alert(`ESTRAZIONE COMPLETATA!\nGuadagno Raid: $${totalValue}\nTutto l'equipaggiamento è stato salvato nel tuo Magazzino.`); document.getElementById('obj-status').innerText = `✅ ESTRATTO`; document.getElementById('obj-status').style.color = "#0f0"; setStatus('exfil'); logEvent(`✅ SQUADRA ${myTeam} è stata esfiltrata.`);
+                alert(`ESTRAZIONE COMPLETATA!\nGuadagno Raid: $${totalValue}\nTutto l'equipaggiamento e i fondi sono stati salvati nel tuo Magazzino.`); document.getElementById('obj-status').innerText = `✅ ESTRATTO IN SICUREZZA`; document.getElementById('obj-status').style.color = "#0f0"; setStatus('exfil'); logEvent(`✅ SQUADRA ${myTeam} è stata esfiltrata con successo.`);
             });
-        }).catch(err => { alert("Errore di salvataggio: " + err); });
+        }).catch(err => { alert("Errore di salvataggio Stash: " + err); });
     }
 
     window.deploy = function() {
@@ -589,8 +520,8 @@
                 let sgs = document.getElementById('start-gear-selection'); if(sgs) sgs.style.display = 'none';
                 
                 isDeployed = true; document.getElementById('hud-economy-box').style.display = globalSettings.economy_active ? 'flex' : 'none'; updateEconomyHUD(); 
+                document.getElementById('team-name-hud').innerText = myTeam;
                 
-                // NOTA: il GPS non ha ancora aggiornato la posizione lat e lng
                 update(ref(db, 'dmz_players/' + myId), { name: myName, team: myTeam, status: 'active', cash: myCash, backpack: myBackpack, cures_left: maxC, revives_left: maxR, lastUpdate: Date.now() });
                 
                 initMap(); startGPS(); setupNetworking(); logEvent(`🪂 ${myName} (Sq. ${myTeam}) schierato nell'AO.`);
@@ -603,13 +534,13 @@
     };
 
     window.manualSetStatus = function(newStatus) {
-        if (myStatus === 'dead') return alert("Sei eliminato. Non puoi cambiare stato.");
-        if (myStatus === 'down' && newStatus === 'active') return alert("Sei ferito! Curati o attendi un medico.");
+        if (myStatus === 'dead') return alert("Sei eliminato. Non puoi cambiare stato da solo.");
+        if (myStatus === 'down' && newStatus === 'active') return alert("Sei ferito e in dissanguamento! Curati o attendi un compagno.");
         setStatus(newStatus);
     };
 
     window.setStatus = function(newStatus, btnElement) {
-        if (myStatus === 'down' && newStatus === 'dead') alert("Eliminato. Attendi rianimazione.");
+        if (myStatus === 'down' && newStatus === 'dead') alert("Eliminato. Attendi alleato/nemico per rianimazione.");
         myStatus = newStatus; update(ref(db, 'dmz_players/' + myId), { status: myStatus }); document.querySelectorAll('.btn-status').forEach(btn => { btn.style.borderColor = "#555"; btn.style.color = "#fff"; });
         if(!btnElement) btnElement = document.getElementById('btn-status-' + newStatus); 
         if(btnElement) { btnElement.style.borderColor = (newStatus==='active')?"#0f0":(newStatus==='down')?"#ffa500":"#aaa"; btnElement.style.color = btnElement.style.borderColor; }
@@ -621,8 +552,15 @@
     };
 
     window.toggleMapRotation = function() {
-        let mapEl = document.getElementById('map'); isMapRotated = !isMapRotated;
-        if(isMapRotated) { mapEl.classList.add('rotated-east'); logEvent("🧭 Mappa ruotata a Est."); } else { mapEl.classList.remove('rotated-east'); logEvent("🧭 Mappa allineata a Nord."); }
+        let mapEl = document.getElementById('map');
+        isMapRotated = !isMapRotated;
+        if(isMapRotated) {
+            mapEl.classList.add('rotated-east');
+            logEvent("🧭 Mappa ruotata a Est.");
+        } else {
+            mapEl.classList.remove('rotated-east');
+            logEvent("🧭 Mappa allineata a Nord.");
+        }
         setTimeout(() => { map.invalidateSize(); centerMap(); }, 300);
     };
 
@@ -633,7 +571,11 @@
 
         activeBases.forEach(b => { 
             let baseLabel = b.name ? b.name : b.id;
-            let iconHtml = `<div class="base-marker-container"><div class="base-circle">${b.id.replace('B','')}</div><div class="base-name">${baseLabel}</div></div>`;
+            let iconHtml = `
+                <div class="base-marker-container">
+                    <div class="base-circle">${b.id.replace('B','')}</div>
+                    <div class="base-name">${baseLabel}</div>
+                </div>`;
             L.marker([b.lat, b.lng], {icon: L.divIcon({ className: 'base-icon', html: iconHtml, iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(map); 
         });
         
@@ -651,7 +593,8 @@
             if(isTargetingAirstrike) {
                 isTargetingAirstrike = false; document.getElementById('targeting-overlay').style.display = 'none'; document.getElementById('map').style.cursor = ''; myBackpack.splice(window.airstrikeIdxPending, 1); updateEconomyHUD();
                 update(ref(db, `dmz_streaks/airstrikes/STRK_${Math.floor(Math.random()*9999)}`), { lat: e.latlng.lat, lng: e.latlng.lng, timestamp: Date.now(), team: myTeam, sender: myName });
-                alert("Attacco aereo in arrivo! Impatto tra 15 secondi."); logEvent(`✈️ ATTACCO AEREO sganciato dalla Sq. ${myTeam}.`);
+                alert("Attacco aereo in arrivo! Impatto tra 15 secondi.");
+                logEvent(`✈️ ATTACCO AEREO sganciato dalla Sq. ${myTeam}.`);
             }
         });
     }
@@ -669,7 +612,7 @@
         }, (err) => {
             let gs = document.getElementById('gps-status');
             if(gs) { gs.style.color = "#f00"; if(err.code === 1) gs.innerText = "GPS: NEGATO"; else if(err.code === 2) gs.innerText = "GPS: NO SEGNALE"; else if(err.code === 3) gs.innerText = "GPS: TIMEOUT"; }
-        }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
     }
 
     setInterval(() => {
@@ -678,6 +621,7 @@
         if (exfilTimerEnd) { if (myStatus !== 'active') { exfilTimerEnd = null; } else if (Math.ceil((exfilTimerEnd - now) / 1000) <= 0) { exfilTimerEnd = null; doExfil(); } }
         if (myContract && myContract.type === 'DESTROY' && myContract.state === 'ARMED') { if (myStatus !== 'active') { myContract = null; } else if (Math.ceil((myContract.endTime - now) / 1000) <= 0) { alert("BOOM! Scorte distrutte!\n+$10000"); myCash += 10000; updateEconomyHUD(); myContract = null; logEvent(`💥 Scorte distrutte.`); } }
 
+        // GESTIONE ZONE GIALLE PER CONTRATTI
         if (myContract && (myContract.type === 'INTEL' || myContract.type === 'NUKE') && myContract.state === 'FETCH') {
             if (!window.contractCircle) { window.contractCircle = L.circle([myContract.targetLat, myContract.targetLng], {color: '#ff0', fillColor: '#ff0', fillOpacity: 0.2, radius: 50, dashArray: '10, 10'}).addTo(map); }
         } else if (window.contractCircle) { map.removeLayer(window.contractCircle); window.contractCircle = null; }
@@ -708,13 +652,14 @@
         if(activeStreaks.emp && activeStreaks.emp.endTime > now && activeStreaks.emp.team !== myTeam) empOn = true;
         document.getElementById('cuav-overlay').style.display = cuavOn ? 'block' : 'none'; document.getElementById('emp-overlay').style.display = empOn ? 'flex' : 'none';
 
+        // GESTIONE TESTO HUD (Con Geiger Counter)
         let osText = (globalSettings.exfil_config && globalSettings.exfil_config.enabled) ? "OBIETTIVO: ESTRAZIONE" : "OBIETTIVO: SOPRAVVIVENZA"; let osColor = "#0f0";
         if (globalSettings.uav_active || localUAVActive) { osText = "⚠️ UAV ATTIVO"; osColor = "#f00"; }
         
         if (myContract) { 
             if (myContract.type === 'NUKE' && myContract.state === 'FETCH' && myMarker) {
                 let dist = Math.round(myMarker.getLatLng().distanceTo([myContract.targetLat, myContract.targetLng]));
-                if (dist <= 50) { osText = `☢️ GEIGER: ${dist}m`; osColor = "#0f0"; if(dist < 5) osText = `☢️ SCANSIONA L'ARMADIETTO QUI`; } else { osText = `VAI ALLA ZONA DI RICERCA`; osColor = "#ff0"; }
+                if (dist <= 50) { osText = `☢️ GEIGER: ${dist}m`; osColor = "#0f0"; if(dist <= 5) osText = `☢️ SCANSIONA L'ARMADIETTO QUI`; } else { osText = `VAI ALLA ZONA DI RICERCA`; osColor = "#ff0"; }
             } else { osText = `CONTRATTO ATTIVO`; osColor = "#ff0"; }
         }
         
@@ -743,6 +688,7 @@
         onValue(ref(db, 'dmz_players'), (snap) => {
             if(!isDeployed) return; const players = snap.val() || {}; let isUAV = globalSettings.uav_active || localUAVActive;
             
+            // AGGIORNAMENTO LISTA COMPAGNI SU HUD
             let teamList = []; Object.keys(players).forEach(k => { if(players[k].team === myTeam && players[k].status !== 'exfil') teamList.push(players[k].name); });
             document.getElementById('team-list-hud').innerText = teamList.join(', ');
 
@@ -754,8 +700,6 @@
             let huntTargetFound = false;
             Object.keys(players).forEach(k => {
                 if (k === myId) return; const p = players[k]; 
-                
-                // FIX CRASH GPS (Safety check fondamentale)
                 if (!p || p.status === 'exfil' || p.lat === undefined || p.lng === undefined) return;
                 
                 if (myContract && myContract.type === 'HUNT' && myContract.targetId === k) {

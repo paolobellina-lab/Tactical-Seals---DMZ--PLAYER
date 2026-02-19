@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DMZ">
 <meta name="theme-color" content="#000000">
-<title>DMZ: TACTICAL MAP v2.8</title>
+<title>DMZ: TACTICAL MAP v2.9</title>
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -82,7 +82,7 @@
 
 <div id="login-screen" class="full-screen-ui">
     <h1>DMZ: DEPLOY</h1>
-    <div class="version-tag">PLAYER TERMINAL v2.8</div>
+    <div class="version-tag">PLAYER TERMINAL v2.9</div>
     
     <div id="status-label" class="status-label">CONNESSIONE...</div>
     
@@ -363,7 +363,7 @@
     window.updateEconomyHUD = function() { document.getElementById('txt-cash').innerText = `💵 $${myCash}`; document.getElementById('txt-bp').innerText = `🎒 ${myBackpack.length}/5`; let hasCargo = myBackpack.some(i => i.name === "CARICO PESANTE"); update(ref(db, 'dmz_players/' + myId), { cash: myCash, backpack: myBackpack, has_cargo: hasCargo }); };
     
     window.openBackpack = function() {
-        if(globalSettings && globalSettings.backpack_active === false) return; // Prevent opening if off
+        if(globalSettings && globalSettings.backpack_active === false) return;
         const cont = document.getElementById('bp-items-container'); cont.innerHTML = "";
         if(myBackpack.length === 0) { cont.innerHTML = "<div style='color:#888; margin-top:20px;'>Lo zaino è vuoto.</div>"; } else {
             myBackpack.forEach((item, idx) => {
@@ -503,7 +503,7 @@
                                 let players = snap.val() || {}; let enemies = Object.keys(players).filter(k => players[k].team !== myTeam && players[k].status === 'active');
                                 if (enemies.length === 0) return alert("Nessun nemico vivo in campo.");
                                 let target = enemies[Math.floor(Math.random() * enemies.length)];
-                                myContract = { type: 'HUNT', targetId: target, state: 'HUNTING', endTime: Date.now() + (5 * 60000) }; alert(`Contratto accettato! Dai la caccia alla SQUADRA ${players[target].team}. Guarda la mappa !`);
+                                myContract = { type: 'HUNT', targetId: target, state: 'HUNTING', endTime: Date.now() + (5 * 60000) }; alert(`Contratto accettato! Dai la caccia alla SQUADRA ${players[target].team}. Guarda la mappa!`);
                                 logEvent(`🎯 CACCIA ALLA SQUADRA avviata contro la ${players[target].team}.`);
                             });
                         }
@@ -562,7 +562,6 @@
         }).catch(err => { alert("Errore di salvataggio Stash: " + err); });
     }
 
-    // FIX DEL CRASH "LAT" IN DEPLOY
     window.deploy = function() {
         try {
             let n = document.getElementById('p-name').value.trim().toUpperCase(); if(!n) return alert("Inserisci il Nome Operatore!"); 
@@ -587,7 +586,6 @@
                 
                 isDeployed = true; document.getElementById('team-name-hud').innerText = myTeam;
                 
-                // ASSEGNAZIONE LAT/LNG INIZIALE PER PREVENIRE IL CRASH
                 update(ref(db, 'dmz_players/' + myId), { 
                     name: myName, team: myTeam, status: 'active', cash: myCash, backpack: myBackpack, 
                     cures_left: maxC, revives_left: maxR, lastUpdate: Date.now(),
@@ -714,6 +712,7 @@
         }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
     }
 
+    // MAIN GAME LOOP (Gestisce il nuovo Gas Dinamico)
     setInterval(() => {
         if(!isDeployed || !map || myStatus === 'exfil') return; let now = Date.now();
         
@@ -727,11 +726,63 @@
         } else if (window.contractCircle) { map.removeLayer(window.contractCircle); window.contractCircle = null; }
 
         let inGas = false; let gasRemain = 0;
+        
+        // --- NUOVO MOTORE GAS DINAMICO ---
         if(globalSettings.gas_config && globalSettings.gas_config.enabled) {
-            let conf = globalSettings.gas_config; let centerLL = L.latLng(activeFieldCenter[0], activeFieldCenter[1]);
-            let stepsTaken = Math.floor(((now - conf.startTime) / 60000) / conf.interval); if(stepsTaken > conf.steps) stepsTaken = conf.steps;
-            let maxR = 0; activePlayAreaCoords.forEach(p => { let d = centerLL.distanceTo(L.latLng(p[0], p[1])); if(d > maxR) maxR = d; }); let currentRadius = maxR * (1 - (stepsTaken / conf.steps)); if(currentRadius < 10) currentRadius = 10;
-            if(!window.safeZoneCircle) { window.safeZoneCircle = L.circle(centerLL, {color:'#f0f', weight:2, fillOpacity:0.05, dashArray:'5,5'}).addTo(map); } else { window.safeZoneCircle.setRadius(currentRadius); }
+            let conf = globalSettings.gas_config; 
+            
+            // 1. Determina il Centro
+            let centerLL = L.latLng(activeFieldCenter[0], activeFieldCenter[1]);
+            if(conf.centerBase && conf.centerBase !== 'FIELD') {
+                let baseMatch = masterBasesDB.find(b => b.id === conf.centerBase);
+                if(baseMatch) centerLL = L.latLng(baseMatch.lat, baseMatch.lng);
+            }
+            
+            // 2. Calcola Raggio Corrente usando la formula di Interpolazione
+            let radii = (conf.radii && conf.radii.length > 0) ? conf.radii : [800, 400, 200, 50];
+            let speedMs = (conf.speed || 1) / 1000; // metri al millisecondo
+            let intervalMs = (conf.interval || 10) * 60000; // attesa tra fasi in millisecondi
+            let dt = now - conf.startTime;
+
+            let currentRadius = radii[0];
+            let phaseTime = 0;
+
+            for (let i = 0; i < radii.length - 1; i++) {
+                let rStart = radii[i]; 
+                let rEnd = radii[i+1];
+                
+                // Fase di Pausa
+                phaseTime += intervalMs;
+                if (dt < phaseTime) { 
+                    currentRadius = rStart; 
+                    break; 
+                }
+                
+                // Fase di Restringimento in corso
+                let shrinkDist = rStart - rEnd; 
+                let shrinkDur = shrinkDist / speedMs;
+                phaseTime += shrinkDur;
+                
+                if (dt < phaseTime) { 
+                    let timeInShrink = dt - (phaseTime - shrinkDur); 
+                    currentRadius = rStart - (timeInShrink * speedMs); 
+                    break; 
+                }
+                
+                // Se è passato, si imposta al raggio finale della fase
+                currentRadius = rEnd;
+            }
+            if(currentRadius < 5) currentRadius = 5; // Sicurezza per evitare raggio negativo
+
+            // 3. Disegna il cerchio
+            if(!window.safeZoneCircle) { 
+                window.safeZoneCircle = L.circle(centerLL, {color:'#f0f', weight:2, fillOpacity:0.05, dashArray:'5,5'}).addTo(map); 
+            } else { 
+                window.safeZoneCircle.setLatLng(centerLL); 
+                window.safeZoneCircle.setRadius(currentRadius); 
+            }
+            
+            // 4. Controlla Danni
             if(myMarker) {
                 inGas = centerLL.distanceTo(myMarker.getLatLng()) > currentRadius;
                 document.getElementById('gas-overlay').style.display = inGas ? 'block' : 'none';
@@ -742,7 +793,10 @@
                 } else if (!inGas) { window.gasExposure = 0; }
                 if (window.lastGasStatus !== inGas) { window.lastGasStatus = inGas; update(ref(db, 'dmz_players/' + myId), { in_gas: inGas }); }
             }
-        } else { document.getElementById('gas-overlay').style.display = 'none'; if(window.safeZoneCircle) { map.removeLayer(window.safeZoneCircle); window.safeZoneCircle = null; } }
+        } else { 
+            document.getElementById('gas-overlay').style.display = 'none'; 
+            if(window.safeZoneCircle) { map.removeLayer(window.safeZoneCircle); window.safeZoneCircle = null; } 
+        }
 
         if (myStatus === 'down' && window.bleedoutEndTime) { if (Math.ceil((window.bleedoutEndTime - now) / 1000) <= 0) { window.bleedoutEndTime = null; setStatus('dead'); } }
 
@@ -811,21 +865,11 @@
         onDisconnect(ref(db, 'dmz_players/' + myId)).remove();
     }
     window.centerMap = function() { if(myMarker) map.setView(myMarker.getLatLng(), 18); };
-    // SISTEMA ANTI-STANDBY (WAKE LOCK) PER SCHERMO SEMPRE ACCESO
+
+    // --- WAKE LOCK ANTI-STANDBY PER I GIOCATORI ---
     let wakeLock = null;
-    async function keepScreenAwake() {
-        try {
-            if ('wakeLock' in navigator) {
-                wakeLock = await navigator.wakeLock.request('screen');
-                console.log("Schermo bloccato acceso.");
-            }
-        } catch (err) { console.log("Wake Lock error: " + err.message); }
-    }
-    // Riavvia il blocco se l'utente abbassa l'app e la riapre
-    document.addEventListener('visibilitychange', () => {
-        if (wakeLock !== null && document.visibilityState === 'visible') keepScreenAwake();
-    });
-    // Il browser richiede che l'utente tocchi lo schermo almeno una volta per attivarlo
+    async function keepScreenAwake() { try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); console.log("Wake Lock attivo."); } } catch (err) { } }
+    document.addEventListener('visibilitychange', () => { if (wakeLock !== null && document.visibilityState === 'visible') keepScreenAwake(); });
     document.addEventListener('click', keepScreenAwake, { once: true });
 </script>
 </body>

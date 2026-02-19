@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DMZ">
 <meta name="theme-color" content="#000000">
-<title>DMZ: TACTICAL MAP v3.1</title>
+<title>DMZ: TACTICAL MAP v3.2</title>
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -40,12 +40,15 @@
     #cuav-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(0deg, rgba(0, 50, 0, 0.1), rgba(0, 50, 0, 0.1) 2px, transparent 2px, transparent 4px); backdrop-filter: blur(8px) grayscale(100%); z-index: 999; display: none; pointer-events: none; }
     #emp-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050000; z-index: 5000; display: none; flex-direction: column; justify-content: center; align-items: center; color: #f00; font-family: monospace; font-size: 24px; font-weight: bold; text-align: center; text-shadow: 0 0 20px #f00; }
     #revive-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 40, 0, 0.95); z-index: 6000; display: none; flex-direction: column; justify-content: center; align-items: center; color: #0f0; font-family: 'Share Tech Mono', monospace; font-size: 24px; text-align: center; text-shadow: 0 0 15px #0f0; }
+    
+    /* HUD TOP - CORREZIONE VISIBILITA' */
     #hud-top-container { position: absolute; top: 0; left: 0; width: 100%; z-index: 1000; display: flex; flex-direction: column; pointer-events: none; }
     #obj-banner { width: 100%; background: rgba(0, 15, 0, 0.85); border-bottom: 2px solid #0f0; padding: 10px 0; color: #0f0; font-weight: bold; font-size: 16px; text-shadow: 0 0 8px #0f0; text-align: center; letter-spacing: 1px; backdrop-filter: blur(5px); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
     #team-banner { background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; padding: 4px; text-align: center; border-bottom: 1px solid #555; }
     #hud-sub-top { display: flex; justify-content: space-between; padding: 10px; width: calc(100% - 20px); }
     .hud-box { background: rgba(0, 20, 0, 0.7); border: 1px solid #0f0; padding: 6px 12px; color: #0f0; font-size: 12px; text-shadow: 0 0 5px #0f0; backdrop-filter: blur(4px); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); box-shadow: 0 0 5px rgba(0,255,0,0.2); }
-    .hud-economy { background: linear-gradient(135deg, rgba(0,40,0,0.9) 0%, rgba(0,15,0,0.9) 100%); cursor: pointer; pointer-events: auto; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+    .hud-economy { background: linear-gradient(135deg, rgba(0,40,0,0.9) 0%, rgba(0,15,0,0.9) 100%); cursor: pointer; pointer-events: auto; font-size: 14px; font-weight: bold; align-items: center; justify-content: center; display:flex; gap:5px; }
+    
     #combat-log { position: absolute; top: 120px; right: 10px; width: 65%; max-width: 280px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end; z-index: 1000; pointer-events: none; }
     .log-entry { background: rgba(0, 15, 0, 0.85); border-right: 3px solid #0f0; color: #fff; padding: 6px 10px; font-size: 11px; font-family: 'Share Tech Mono', monospace; text-shadow: 0 0 3px #000; clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px); animation: slideIn 0.4s ease-out; backdrop-filter: blur(2px); text-align: right; }
     .log-entry span.time { color: #0ff; margin-right: 5px; }
@@ -100,7 +103,7 @@
 
 <div id="login-screen" class="full-screen-ui">
     <h1>DMZ: DEPLOY</h1>
-    <div class="version-tag">PLAYER TERMINAL v3.1</div>
+    <div class="version-tag">PLAYER TERMINAL v3.2</div>
     
     <div id="status-label" class="status-label">CONNESSIONE...</div>
     
@@ -290,7 +293,6 @@
             let sgs = document.getElementById('start-gear-selection'); let sgo = document.getElementById('start-gear-options');
             
             if (!isDeployed && globalSettings.start_gear_config) {
-                // SE ZAINO ED ECONOMIA SONO ENTRAMBI SPENTI, NASCONDI IL TASTO MAGAZZINO
                 if (globalSettings.backpack_active === false && globalSettings.economy_active === false) {
                     document.getElementById('btn-stash').style.display = 'none';
                 } else {
@@ -312,7 +314,7 @@
             if (isDeployed) { tacticalAlert("La partita è stata terminata dal Comando."); setTimeout(()=> window.location.reload(), 3000); }
         }
         
-        // GESTIONE HUD DURANTE IL GIOCO
+        // GESTIONE VISIBILITA' HUD
         if (isDeployed) { 
             let ecoBox = document.getElementById('hud-economy-box');
             let txtCash = document.getElementById('txt-cash');
@@ -417,11 +419,24 @@
         let pItems = isRare ? defaultRarePool : (globalSettings.lockers_config ? globalSettings.lockers_config.pool : []);
         
         if (globalSettings.economy_active !== false && pMoney && pMoney.length > 0) { let rM = Math.random() * 100, cM = 0; for(let m of pMoney) { cM += m.chance; if(rM <= cM){ money = m.amount; break; } } }
-        if (globalSettings.backpack_active !== false && pItems && pItems.length > 0) { let rI = Math.random() * 100, cI = 0; for(let i of pItems) { cI += i.chance; if(rI <= cI){ if(i.name !== "VUOTO") { let newItem = { ...i }; if (newItem.name.includes("CHIAVE")) newItem.uses = 3; items.push(newItem); } break; } } }
+        
+        if (globalSettings.backpack_active !== false && pItems && pItems.length > 0) { 
+            let rI = Math.random() * 100, cI = 0; 
+            for(let i of pItems) { cI += i.chance; if(rI <= cI){ if(i.name !== "VUOTO") { let newItem = { ...i }; if (newItem.name.includes("CHIAVE")) newItem.uses = 3; items.push(newItem); } break; } } 
+            
+            // INIEZIONE AUTOMATICA CHIAVI BASI E ARMADIETTI NEL LOOT
+            if (Math.random() * 100 <= 15) items.push({ name: `CHIAVE ARMADIETTI`, uses: 3, value: 500 });
+            if (Math.random() * 100 <= 10) items.push({ name: `CHIAVE B${Math.floor(Math.random() * 20) + 1}`, uses: 3, value: 1000 });
+        }
         return { money, items };
     }
 
-    window.updateEconomyHUD = function() { document.getElementById('txt-cash').innerText = `💵 $${myCash}`; document.getElementById('txt-bp').innerText = `🎒 ${myBackpack.length}/5`; let hasCargo = myBackpack.some(i => i.name === "CARICO PESANTE"); update(ref(db, 'dmz_players/' + myId), { cash: myCash, backpack: myBackpack, has_cargo: hasCargo }); };
+    window.updateEconomyHUD = function() { 
+        document.getElementById('txt-cash').innerText = `💵 $${myCash}`; 
+        document.getElementById('txt-bp').innerText = `🎒 ${myBackpack.length}/5`; 
+        let hasCargo = myBackpack.some(i => i.name === "CARICO PESANTE"); 
+        update(ref(db, 'dmz_players/' + myId), { cash: myCash, backpack: myBackpack, has_cargo: hasCargo }); 
+    };
     
     window.openBackpack = function() {
         if(globalSettings && globalSettings.backpack_active === false) return;
@@ -459,11 +474,22 @@
     };
 
     function consumeKey(targetCode, onSuccessCallback) {
-        let isBase = targetCode.startsWith('B'); let isLocker = targetCode.startsWith('A');
-        if (isBase && (!globalSettings.keys_bases)) { onSuccessCallback(); return; }
-        if (isLocker && (!globalSettings.keys_lockers)) { onSuccessCallback(); return; }
+        let isBase = targetCode.startsWith('B'); 
+        let isLocker = targetCode.startsWith('A');
         
-        let targetKeyName = `CHIAVE ${targetCode}`; let specificIdx = myBackpack.findIndex(i => i.name === targetKeyName); let univIdx = myBackpack.findIndex(i => i.name === "CHIAVE UNIVERSALE"); let idxToUse = specificIdx > -1 ? specificIdx : univIdx;
+        if (isBase && (!globalSettings.keys_bases)) { onSuccessCallback(); return; }
+        
+        // NUOVA LOGICA CHIAVI ARMADIETTI (SOLO A50-A100)
+        if (isLocker) {
+            let lockerNum = parseInt(targetCode.replace('A', ''));
+            let isLockedLocker = (lockerNum >= 50 && lockerNum <= 100);
+            if (!globalSettings.keys_lockers || !isLockedLocker) { onSuccessCallback(); return; }
+        }
+        
+        let targetKeyName = isLocker ? "CHIAVE ARMADIETTI" : `CHIAVE ${targetCode}`; 
+        let specificIdx = myBackpack.findIndex(i => i.name === targetKeyName); 
+        let univIdx = myBackpack.findIndex(i => i.name === "CHIAVE UNIVERSALE"); 
+        let idxToUse = specificIdx > -1 ? specificIdx : univIdx;
         
         if (idxToUse > -1) {
             let key = myBackpack[idxToUse]; if (key.uses === undefined) key.uses = 3;
@@ -476,7 +502,7 @@
             });
             return; 
         }
-        tacticalAlert(`ACCESSO NEGATO: Serve CHIAVE ${targetCode} o UNIVERSALE.`, "LOCKED");
+        tacticalAlert(`ACCESSO NEGATO: Serve ${targetKeyName} o CHIAVE UNIVERSALE.`, "LOCKED");
     }
 
     let actionTargetCode = null; let actionTargetData = null;
@@ -660,6 +686,15 @@
                 
                 isDeployed = true; document.getElementById('team-name-hud').innerText = myTeam;
                 
+                // FORZA VISIBILITA' HUD SOLDI
+                let ecoBox = document.getElementById('hud-economy-box');
+                if (globalSettings.economy_active === false && globalSettings.backpack_active === false) { ecoBox.style.display = 'none'; } else {
+                    ecoBox.style.display = 'flex';
+                    document.getElementById('txt-cash').style.display = (globalSettings.economy_active === false) ? 'none' : 'inline';
+                    document.getElementById('txt-bp').style.display = (globalSettings.backpack_active === false) ? 'none' : 'inline';
+                    document.getElementById('txt-sep').style.display = (globalSettings.economy_active !== false && globalSettings.backpack_active !== false) ? 'inline' : 'none';
+                }
+
                 update(ref(db, 'dmz_players/' + myId), { name: myName, team: myTeam, status: 'active', cash: myCash, backpack: myBackpack, cures_left: maxC, revives_left: maxR, lastUpdate: Date.now(), lat: activeFieldCenter[0], lng: activeFieldCenter[1] });
                 initMap(); startGPS(); setupNetworking(); logEvent(`🪂 ${myName} (Sq. ${myTeam}) schierato nell'AO.`);
             }).catch(err => { tacticalAlert("Errore di connessione a Firebase: " + err.message); });
@@ -787,7 +822,7 @@
         renderMarkers();
 
         if (exfilTimerEnd) { if (myStatus !== 'active') { exfilTimerEnd = null; } else if (Math.ceil((exfilTimerEnd - now) / 1000) <= 0) { exfilTimerEnd = null; doExfil(); } }
-        if (myContract && myContract.type === 'DESTROY' && myContract.state === 'ARMED') { if (myStatus !== 'active') { myContract = null; } else if (Math.ceil((myContract.endTime - now) / 1000) <= 0) { tacticalAlert("BOOM! Scorte distrutte!\n+$10000", "SUCCESS", true); myCash += 10000; updateEconomyHUD(); myContract = null; logEvent(`💥 Scorte distrutte.`); } }
+        if (myContract && myContract.type === 'DESTROY' && myContract.state === 'ARMED') { if (myStatus !== 'active') { myContract = null; } else if (Math.ceil((myContract.endTime - now) / 1000) <= 0) { tacticalAlert("BOOM! Scorte distrutte!\n+$10000", "SUCCESS", true); myCash += 10000; updateEconomyHUD(); myContract = null; logEvent(`💥 Scorte distrutte (Contratto completato).`); } }
 
         if (myContract && (myContract.type === 'INTEL' || myContract.type === 'NUKE') && myContract.state === 'FETCH') {
             if (!window.contractCircle) { window.contractCircle = L.circle([myContract.targetLat, myContract.targetLng], {color: '#ff0', fillColor: '#ff0', fillOpacity: 0.2, radius: 50, dashArray: '10, 10'}).addTo(map); }

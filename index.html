@@ -811,6 +811,22 @@
         onDisconnect(ref(db, 'dmz_players/' + myId)).remove();
     }
     window.centerMap = function() { if(myMarker) map.setView(myMarker.getLatLng(), 18); };
+    // SISTEMA ANTI-STANDBY (WAKE LOCK) PER SCHERMO SEMPRE ACCESO
+    let wakeLock = null;
+    async function keepScreenAwake() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log("Schermo bloccato acceso.");
+            }
+        } catch (err) { console.log("Wake Lock error: " + err.message); }
+    }
+    // Riavvia il blocco se l'utente abbassa l'app e la riapre
+    document.addEventListener('visibilitychange', () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') keepScreenAwake();
+    });
+    // Il browser richiede che l'utente tocchi lo schermo almeno una volta per attivarlo
+    document.addEventListener('click', keepScreenAwake, { once: true });
 </script>
 </body>
 </html>

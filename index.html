@@ -187,7 +187,8 @@
 <div id="revive-overlay">
     <span id="revive-text" style="font-size: 20px;">🏥 CURE IN CORSO...<br>Rimani in zona!</span><br><br>
     <span id="revive-timer" style="font-size: 60px; color:#fff;">10</span><br><br>
-    <button class="btn-deploy" style="background:#500; border-color:#f00; margin-top:40px;" onclick="cancelRevive()">INTERROMPI CURE</button>
+    <button id="btn-revive-scan" class="btn-deploy" style="background:#050; border-color:#0f0; display:none; margin-bottom:15px;" onclick="closeReviveAndScan()">📷 SCANSIONA ORA</button>
+    <button id="btn-revive-cancel" class="btn-deploy" style="background:#500; border-color:#f00;" onclick="cancelRevive()">INTERROMPI CURE</button>
 </div>
 
 <div id="emp-overlay">⚠️ ERRORE CRITICO ⚠️<br><br>IMPULSO ELETROMAGNETICO</div>
@@ -349,11 +350,11 @@
                     else if (mode === 'choice') { if(sgs) sgs.style.display = 'block'; if(sgo) sgo.innerHTML = pool.map((i, idx) => `<label style="color:#0cf; font-size:12px; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="start-gear-cb" value="${idx}" style="transform:scale(1.2);"> ${i.name}</label>`).join(''); }
                 }
             } else if(!isDeployed) { if(sgs) sgs.style.display = 'none'; }
-        } else {
-            } else {
+       } else {
             window.finalExfilRevealed = false; // Reset Elicottero Finale
-            if(sl) sl.innerText = "🔴 IN ATTESA DEL MASTER"; if(sl) sl.className = "status-label"; if(bd) bd.style.display = "none"; let sgs = document.getElementById('start-gear-selection'); if(sgs) sgs.style.display = 'none';
-            if (isDeployed && !isGameOver) {
+            if(sl) sl.innerText = "🔴 IN ATTESA DEL MASTER";
+if(sl) sl.className = "status-label"; if(bd) bd.style.display = "none"; let sgs = document.getElementById('start-gear-selection'); if(sgs) sgs.style.display = 'none';
+            if (isDeployed && !isGameOver) { 
                 isGameOver = true;
                 if(myStatus === 'active' || myStatus === 'down') { setStatus('dead'); } // KIA istantaneo se non hai esfiltrato
                 setTimeout(() => {
@@ -447,41 +448,34 @@
 
 function generateLockerContent(isRare) {
         let money = 0, items = []; 
-        let pMoney = globalSettings.lockers_config ? globalSettings.lockers_config.moneyPool : []; 
+        let conf = globalSettings.lockers_config || {};
         
-        // LEGGE IL POOL DAL DATABASE IN BASE ALLA RARITÀ (Normale o Chiave)
-        let pItems = [];
-        if (isRare) {
-            pItems = (globalSettings.lockers_config && globalSettings.lockers_config.rarePool) ? globalSettings.lockers_config.rarePool : [];
-        } else {
-            pItems = (globalSettings.lockers_config && globalSettings.lockers_config.pool) ? globalSettings.lockers_config.pool : [];
+        // Sceglie il database giusto a seconda se l'armadietto è raro o no
+        let pMoney = isRare ? (conf.rareMoneyPool || []) : (conf.moneyPool || []);
+        let pItems = isRare ? (conf.rarePool || []) : (conf.pool || []);
+        
+        // 1. GENERAZIONE DENARO (Mischia le opzioni e tira il dado)
+        if (globalSettings.economy_active !== false && pMoney.length > 0) { 
+            let shuffledMoney = [...pMoney].sort(() => 0.5 - Math.random());
+            for(let m of shuffledMoney) { 
+                if(Math.random() * 100 <= m.chance) { money = m.amount; break; } 
+            } 
         }
         
-        // GENERAZIONE DENARO
-        if (globalSettings.economy_active !== false && pMoney && pMoney.length > 0) { 
-            let rM = Math.random() * 100, cM = 0; 
-            for(let m of pMoney) { cM += m.chance; if(rM <= cM){ money = m.amount; break; } } 
-        }
-        
-        // GENERAZIONE OGGETTI (Ora sotto il tuo totale controllo!)
-        if (globalSettings.backpack_active !== false && pItems && pItems.length > 0) { 
-            let rI = Math.random() * 100, cI = 0; 
-            for(let i of pItems) { 
-                cI += i.chance; 
-                if(rI <= cI){ 
-                    if(i.name !== "VUOTO") { 
-                        let newItem = { ...i }; 
-                        if (newItem.name.includes("CHIAVE")) newItem.uses = 3; 
-                        items.push(newItem); 
-                    } 
-                    break; 
+        // 2. GENERAZIONE OGGETTI (Ogni oggetto tira il suo dado indipendente!)
+        if (globalSettings.backpack_active !== false && pItems.length > 0) { 
+            let shuffledItems = [...pItems].sort(() => 0.5 - Math.random());
+            for(let i of shuffledItems) { 
+                if(i.name !== "VUOTO" && (Math.random() * 100) <= i.chance){ 
+                    let newItem = { ...i }; 
+                    if (newItem.name.includes("CHIAVE")) newItem.uses = 3; 
+                    items.push(newItem); 
+                    if(items.length >= 3) break; // Limite: Massimo 3 oggetti per cassa
                 } 
             } 
-            // LE CHIAVI CASUALI INCONTROLLABILI SONO STATE CANCELLATE DA QUI
         }
         return { money, items };
     }
-
     window.updateEconomyHUD = function() { document.getElementById('txt-cash').innerText = `💵 $${myCash}`; document.getElementById('txt-bp').innerText = `🎒 ${myBackpack.length}/5`; let hasCargo = myBackpack.some(i => i.name === "CARICO PESANTE"); update(ref(db, 'dmz_players/' + myId), { cash: myCash, backpack: myBackpack, has_cargo: hasCargo }); };
     
     window.openBackpack = function() {
@@ -556,12 +550,10 @@ function generateLockerContent(isRare) {
             window.currentTargetToHeal = actionTargetCode;
             update(ref(db, 'dmz_players/' + actionTargetCode), { is_being_healed: true });
 
-            document.getElementById('revive-overlay').innerHTML = `
-                <span id="revive-text" style="font-size:20px;">🏥 RIANIMAZIONE IN CORSO...<br>Rimani in zona!</span><br><br>
-                <span id="revive-timer" style="font-size:60px;color:#fff;">10</span><br><br>
-                <button id="btn-revive-scan" class="btn-deploy" style="background:#050;border-color:#0f0;display:none;margin-bottom:15px;" onclick="closeReviveAndScan()">📷 SCANSIONA ORA</button>
-                <button id="btn-revive-cancel" class="btn-deploy" style="background:#500;border-color:#f00;" onclick="cancelRevive()">INTERROMPI</button>
-            `;
+            document.getElementById('revive-text').innerHTML = "🏥 RIANIMAZIONE IN CORSO...<br>Rimani in zona!";
+            document.getElementById('btn-revive-scan').style.display = 'none';
+            document.getElementById('btn-revive-cancel').style.display = 'inline-block';
+            document.getElementById('revive-timer').style.display = 'inline';
             document.getElementById('revive-overlay').style.display = 'flex';
             let timeLeft = 10; document.getElementById('revive-timer').innerText = timeLeft;
             
@@ -618,7 +610,13 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
 
     // FASE 2: GESTIONE DOPPIA SCANSIONE EXFIL E FINALE
     window.processScannedCode = function() {
-        let code = document.getElementById('manual-code-input').value.trim().toUpperCase(); if(!code) return; closeScanner();
+        let code = document.getElementById('manual-code-input').value.trim().toUpperCase(); if(!code) return; 
+        
+        // Mettiamo in cassaforte la memoria del DROP prima che la fotocamera si chiuda!
+        let tempDropMemory = window.pendingDropItemIdx;
+        closeScanner();
+        window.pendingDropItemIdx = tempDropMemory;
+
 // GESTIONE SICUREZZA 5 SECONDI: Se avevi una cura in sospeso ma scansioni qualcos'altro (es. una cassa)
         if (window.pendingHealTarget && window.pendingHealTarget !== code) {
             if (window.confirmReviveInterval) clearInterval(window.confirmReviveInterval);
@@ -629,7 +627,7 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
       if (code.startsWith('A')) {
             if (globalSettings && globalSettings.lockers_active === false) return tacticalAlert("Gli armadietti sono disabilitati in questa partita.", "ACCESSO NEGATO");
             
-            // LOGICA DROP TATTICO: Trasforma la cassa
+           // LOGICA DROP TATTICO: Trasforma la cassa (CON RITARDO 4 MINUTI)
             if (window.pendingDropItemIdx !== undefined) {
                 myBackpack.splice(window.pendingDropItemIdx, 1);
                 window.pendingDropItemIdx = undefined;
@@ -637,17 +635,30 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
                 
                 let dropLat = myMarker ? myMarker.getLatLng().lat : activeFieldCenter[0];
                 let dropLng = myMarker ? myMarker.getLatLng().lng : activeFieldCenter[1];
+                let arriveTime = Date.now() + 240000; // 4 minuti (240.000 ms)
                 
-                update(ref(db, `dmz_lockers/${code}`), { money: 8000, items: [ {name: "CHIAVE UNIVERSALE", value: 5000, uses: 3}, {name: "ATTACCO AEREO", value: 8000}, {name: "MASCHERA GAS COMPLETA", value: 3000} ], isDrop: true });
-                update(ref(db, `dmz_streaks/drops/${code}`), { lat: dropLat, lng: dropLng, timestamp: Date.now(), team: myTeam });
+                // Popoliamo la cassa (con matchId per evitare reset automatici)
+                update(ref(db, `dmz_lockers/${code}`), { money: 8000, items: [ {name: "CHIAVE UNIVERSALE", value: 5000, uses: 3}, {name: "ATTACCO AEREO", value: 8000}, {name: "MASCHERA GAS COMPLETA", value: 3000} ], isDrop: true, matchId: globalSettings.gameEndTime });
                 
-                speakTactical("Coordinate confermate. Rifornimenti in arrivo.");
-                tacticalAlert("LANCIO CONFERMATO!\nL'armadietto è ora pieno di equipaggiamento ed è visibile a tutti sulla mappa!", "DROP TATTICO", true);
-                logEvent(`📦 La SQUADRA ${myTeam} ha richiesto un Lancio Rifornimenti in ${code}.`);
+                // Salviamo il Drop con le TUE coordinate GPS e il tempo di atterraggio!
+                update(ref(db, `dmz_streaks/drops/${code}`), { lat: dropLat, lng: dropLng, timestamp: Date.now(), arriveAt: arriveTime, team: myTeam });
+                
+               speakTactical(`Coordinate confermate. Rifornimenti in arrivo alla cassa ${code} tra quattro minuti.`);
+                tacticalAlert(`LANCIO INVIATO SULLA CASSA ${code}!\nArriverà tra 4 minuti. Difendi la posizione!`, "DROP TATTICO", true);
+                logEvent(`📦 Sq. ${myTeam} ha chiamato un Drop sulla cassa ${code}. Arrivo in 4 min.`);
                 return;
             }
 
-            let isRare = globalSettings.keys_lockers ? true : false;
+            // CONTROLLO SICUREZZA: Impediamo di aprire la cassa se il lancio è in volo!
+            if (activeStreaks && activeStreaks.drops && activeStreaks.drops[code]) {
+                if (Date.now() < activeStreaks.drops[code].arriveAt) {
+                    let secL = Math.ceil((activeStreaks.drops[code].arriveAt - Date.now()) / 1000);
+                    return tacticalAlert(`Il lancio rifornimenti è ancora in volo!\nAtterraggio previsto tra ${secL} secondi. Difendi l'area!`, "CASSA BLOCCATA");
+                }
+            }
+
+            let lockerNum = parseInt(code.replace('A', ''));
+            let isRare = (globalSettings.keys_lockers && lockerNum >= 50 && lockerNum <= 100);
             consumeKey(code, () => {
                 if (myContract && (myContract.type === 'INTEL' || myContract.type === 'NUKE') && myContract.state === 'FETCH') {
                     // CONTROLLA SE È L'ARMADIETTO SEGRETO SCELTO DAL SISTEMA
@@ -660,6 +671,7 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
                         tacticalAlert("I dati non sono in questo armadietto. Continua a cercare nell'area gialla!", "RICERCA FALLITA");
                     }
                 }
+
 // --- INIZIO LOGICA CARGO LOGISTICO ---
                 if (myContract && myContract.type === 'CARGO') {
                     if (code === myContract.targetLocker) {
@@ -669,7 +681,6 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
                             speakTactical("Carico acquisito. Procedi al punto di consegna.");
                             tacticalAlert("CARICO RITIRATO!\nPortalo al nuovo punto indicato sulla mappa.", "CARGO PRESO", true);
                             
-                            // Assegna la destinazione (Punto B)
                             let dB = masterBasesDB.filter(b => b.id !== myContract.targetId);
                             let destBase = dB[Math.floor(Math.random() * dB.length)];
                             let destLockerId = destBase.id.replace('B', 'A');
@@ -691,8 +702,17 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
                     }
                 }
                 // --- FINE LOGICA CARGO LOGISTICO ---
-                get(ref(db, `dmz_lockers/${code}`)).then((snap) => { let lockerData = snap.val(); if (!lockerData) { lockerData = generateLockerContent(isRare); update(ref(db, `dmz_lockers/${code}`), lockerData); } openLockerUI(code, lockerData, 'LOCKER'); });
-            });
+                get(ref(db, `dmz_lockers/${code}`)).then((snap) => { 
+                    let lockerData = snap.val(); 
+                    // Se la cassa è vuota o appartiene a un vecchio test, la rigenera!
+                    if (!lockerData || lockerData.matchId !== globalSettings.gameEndTime) { 
+                        lockerData = generateLockerContent(isRare); 
+                        lockerData.matchId = globalSettings.gameEndTime; // Firma la cassa con l'ID di questa partita
+                        update(ref(db, `dmz_lockers/${code}`), lockerData); 
+                    } 
+                    openLockerUI(code, lockerData, 'LOCKER'); 
+                });
+}); // <--- AGGIUNGI QUESTA RIGA ESATTA (Chiude la funzione della chiave!)
         } 
         else if (code.startsWith('B')) {
             let baseExists = activeBases.find(b => b.id === code); if (!baseExists) return tacticalAlert(`ERRORE: Base fuori area.`);
@@ -719,7 +739,7 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
                                 myContract = { type: randomContract, targetId: targetBase.id, targetLocker: targetLockerId, targetLat: targetBase.lat, targetLng: targetBase.lng, state: randomContract==='DESTROY'?'GOTO':'FETCH' }; speakTactical("Contratto accettato.");
                                 if(randomContract === 'NUKE') logEvent(`☢️ Sq. ${myTeam} cerca Materiale Nucleare.`); else logEvent(`📜 Sq. ${myTeam} avvia ${randomContract}.`); 
                             }
-                            } else if (randomContract === 'CARGO') {
+                            else if (randomContract === 'CARGO') {
                                 if(globalSettings.backpack_active === false) return tacticalAlert("Zaino disabilitato, impossibile trasportare il carico.", "ERRORE");
                                 if(myBackpack.length >= 5) return tacticalAlert("Devi avere 1 slot libero nello zaino!");
                                 
@@ -812,14 +832,15 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
                     let curesLeft = target.cures_left !== undefined ? target.cures_left : 2;
                     if (curesLeft <= 0) return tacticalAlert("Cure rapide esaurite. Deve essere Eliminato.");
                     
-                    window.currentTargetToHeal = code;
+                   window.currentTargetToHeal = code;
                     update(ref(db, 'dmz_players/' + code), { is_being_healed: true });
                     
-                    document.getElementById('revive-overlay').style.display = 'flex';
                     document.getElementById('revive-text').innerHTML = "🏥 CURE IN CORSO...<br>Rimani in zona!";
-                    let timeLeft = 10; document.getElementById('revive-timer').innerText = timeLeft;
-                    document.getElementById('revive-timer').style.display = 'inline';
                     document.getElementById('btn-revive-scan').style.display = 'none';
+                    document.getElementById('btn-revive-cancel').style.display = 'inline-block';
+                    document.getElementById('revive-timer').style.display = 'inline';
+                    document.getElementById('revive-overlay').style.display = 'flex';
+                    let timeLeft = 10; document.getElementById('revive-timer').innerText = timeLeft;
                     
                     window.reviveInterval = setInterval(() => {
                         if (myStatus !== 'active') { 
@@ -833,6 +854,7 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
                             document.getElementById('revive-text').innerHTML = "✅ CURE PRONTE!<br>Hai 5 SECONDI!";
                             document.getElementById('revive-timer').style.display = 'none';
                             document.getElementById('btn-revive-scan').style.display = 'inline-block';
+                            document.getElementById('btn-revive-cancel').style.display = 'none';
                             window.pendingHealTarget = code;
                             let confirmTime = 5;
                             window.confirmReviveInterval = setInterval(() => {
@@ -857,7 +879,7 @@ window.closeScanner = function() { document.getElementById('scanner-modal').styl
         let contractReward = 0; 
 let hI = myBackpack.findIndex(i => i.name === "DATI SEGRETI"); 
         if (hI > -1 && myContract && myContract.type === 'INTEL') { contractReward += 8000; tacticalAlert("CONTRATTO INTEL COMPLETATO!\n+$8000", "REWARD", true); myContract = null; myContractsDone++; }
-       tacticalAlert("CONTRATTO CARGO COMPLETATO!\n+$15000", "REWARD", true); myContract = null; myBackpack = myBackpack.filter(i => i.name !== "CARICO PESANTE"); myContractsDone++; }
+        
         let hN = myBackpack.findIndex(i => i.name === "BARRE DI URANIO"); 
         if (hN > -1 && myContract && myContract.type === 'NUKE') { contractReward += 20000; tacticalAlert("MATERIALE NUCLEARE ESTRATTO!\n+$20000", "REWARD", true); myContract = null; myContractsDone++; }
         
@@ -961,8 +983,23 @@ window.showEndGameScreen = function(reason) {
                 
                 let sgs = document.getElementById('start-gear-selection'); if(sgs) sgs.style.display = 'none';
                 
-                isDeployed = true; document.getElementById('team-name-hud').innerText = myTeam;
+              isDeployed = true; document.getElementById('team-name-hud').innerText = myTeam;
                 
+                // --- INIZIO LETTURA EQUIPAGGIAMENTO INIZIALE ---
+                if (globalSettings.start_gear_config && globalSettings.backpack_active !== false) {
+                    let mode = globalSettings.start_gear_config.mode;
+                    let pool = globalSettings.start_gear_config.pool || [];
+                    if (mode === 'fixed') {
+                        pool.forEach(item => { if(myBackpack.length < 5) myBackpack.push({...item}); });
+                    } else if (mode === 'choice') {
+                        let limit = globalSettings.start_gear_config.limit || 2;
+                        let checkedBoxes = document.querySelectorAll('.start-gear-cb:checked');
+                        if (checkedBoxes.length > limit) return tacticalAlert(`Puoi scegliere al massimo ${limit} oggetti iniziali!`, "ERRORE PESO");
+                        checkedBoxes.forEach(cb => { let item = pool[cb.value]; if(item && myBackpack.length < 5) myBackpack.push({...item}); });
+                    }
+                }
+                // --- FINE LETTURA EQUIPAGGIAMENTO INIZIALE ---
+
                 let ecoBox = document.getElementById('hud-economy-box');
                 if (globalSettings.economy_active === false && globalSettings.backpack_active === false) { ecoBox.style.display = 'none'; } else {
                     ecoBox.style.display = 'flex'; document.getElementById('txt-cash').style.display = (globalSettings.economy_active === false) ? 'none' : 'inline'; document.getElementById('txt-bp').style.display = (globalSettings.backpack_active === false) ? 'none' : 'inline'; document.getElementById('txt-sep').style.display = (globalSettings.economy_active !== false && globalSettings.backpack_active !== false) ? 'inline' : 'none';
@@ -1080,15 +1117,26 @@ window.showEndGameScreen = function(reason) {
                 if(markers[`EX_${k}`]) { map.removeLayer(markers[`EX_${k}`]); delete markers[`EX_${k}`]; }
             }
         });
-// DISEGNA I DROP SULLA MAPPA (Visibili a TUTTI per 10 minuti)
+// DISEGNA I DROP SULLA MAPPA (In volo e Atterrati)
         if(activeStreaks.drops) {
             Object.keys(activeStreaks.drops).forEach(k => {
                 let drop = activeStreaks.drops[k];
-                if (Date.now() < drop.timestamp + 600000) { 
-                    let iconHtml = `<div class="base-marker-container"><div class="exfil-circle" style="background:#0f0; border-color:#fff; box-shadow:0 0 15px #0f0; border-radius:5px;">📦</div><div class="exfil-name" style="color:#0f0; width:100px; margin-left:-5px;">DROP<br>${k}</div></div>`;
+                let now = Date.now();
+                let arriveAt = drop.arriveAt || drop.timestamp; // Riconosce i vecchi drop per sicurezza
+                
+                if (now < arriveAt + 600000) { // Visibile fino a 10 min DOPO l'atterraggio
+                    let isLanded = now >= arriveAt;
+                    let color = isLanded ? "#0f0" : "#ffaa00"; // Verde se atterrato, Arancione se in volo
+                    let status = isLanded ? "ATTERRATO" : `IN VOLO`;
+                    let anim = isLanded ? "none" : "ping-pulse 1s infinite";
+                    
+                    let iconHtml = `<div class="base-marker-container"><div class="exfil-circle" style="background:rgba(0,0,0,0.8); border-color:${color}; box-shadow:0 0 15px ${color}; border-radius:5px; animation:${anim};">📦</div><div class="exfil-name" style="color:${color}; width:100px; margin-left:-5px;">DROP<br>${status}</div></div>`;
                     let ic = L.divIcon({ className: 'drop-dynamic', html: iconHtml, iconSize: [30, 30], iconAnchor: [15, 15] });
+                    
                     if(!markers[`DROP_${k}`]) markers[`DROP_${k}`] = L.marker([drop.lat, drop.lng], {icon:ic}).addTo(map);
                     else { markers[`DROP_${k}`].setIcon(ic); markers[`DROP_${k}`].setLatLng([drop.lat, drop.lng]); }
+                } else {
+                    if(markers[`DROP_${k}`]) { map.removeLayer(markers[`DROP_${k}`]); delete markers[`DROP_${k}`]; }
                 }
             });
         }
@@ -1149,33 +1197,59 @@ window.showEndGameScreen = function(reason) {
         
         renderMarkers();
 
-        // LOGICA TIMER FINE PARTITA
-        // LOGICA TIMER FINE PARTITA E MORTI
+// LOGICA TIMER FINE PARTITA E MORTI
         if (globalSettings.gameEndTime && !isGameOver && globalSettings.status === 'running') {
             let timeLeftMs = globalSettings.gameEndTime - now;
             
-            // ELICOTTERO FINALE: Ultimi 5 minuti (300.000 ms)
-            if (timeLeftMs <= 300000 && !window.finalExfilRevealed && globalSettings.exfil_config && globalSettings.exfil_config.finalPoint) {
+            // ELICOTTERO FINALE AUTOMATICO SULLA BASE DEL GAS (A 2 MINUTI DALLA FINE)
+            if (timeLeftMs <= 120000 && !window.finalExfilRevealed) {
                 window.finalExfilRevealed = true;
-                tacticalAlert("L'ELICOTTERO FINALE È IN ARRIVO!\nTutti i punti standard sono disabilitati. Raggiungi l'Estrazione Finale per salvarti!", "ESTRAZIONE DI EMERGENZA", true);
-                speakTactical("Attenzione. Elicottero finale in arrivo. Raggiungere l'estrazione immediatamente.");
-                // Sostituisce i vecchi punti con quello finale
-                globalSettings.exfil_config.points = [globalSettings.exfil_config.finalPoint];
-                // Cancella i vecchi marker visivi dalla mappa
-                Object.keys(markers).forEach(k => { if (k.startsWith('EX_')) { map.removeLayer(markers[k]); delete markers[k]; } });
-                logEvent(`🚁 L'Elicottero Finale è in avvicinamento.`);
+                
+                // 1. Identifica la base centro del gas
+                let centerBaseId = (globalSettings.gas_config && globalSettings.gas_config.centerBase !== 'FIELD') ? globalSettings.gas_config.centerBase : 'B1';
+                let targetBase = masterBasesDB.find(b => b.id === centerBaseId) || masterBasesDB[0];
+                
+                // 2. Crea il codice di estrazione nativo (es. se la base è B5, il codice è E5)
+                let exfilCode = targetBase.id.replace('B', 'E'); 
+                
+                // 3. Calcola i tempi (Atterra a 00:00 esatti, Ripartirà 30 secondi DOPO lo zero)
+                let arriveTime = globalSettings.gameEndTime; 
+                let departTime = globalSettings.gameEndTime + 30000;
+                
+                // 4. Cancella le vecchie estrazioni e chiama il sistema
+                set(ref(db, 'dmz_exfils'), null).then(() => {
+                    update(ref(db, `dmz_exfils/${exfilCode}`), {
+                        calledAt: now, arriveAt: arriveTime, departAt: departTime, callerTeam: "SYSTEM",
+                        lat: targetBase.lat, lng: targetBase.lng, isFinal: true
+                    });
+                });
+
+                currentExfilPoints = [{ id: exfilCode, lat: targetBase.lat, lng: targetBase.lng, label: "ESTRAZIONE FINALE" }];
+                
+                tacticalAlert(`ALLARME GAS!\nL'elicottero di estrazione finale è stato chiamato alla base ${targetBase.name}!\nAtterrerà tra 2 minuti. Avrai 30 secondi per salire.`, "ESTRAZIONE DI EMERGENZA", true);
+                speakTactical(`Attenzione. Elicottero finale in avvicinamento alla base ${targetBase.name}. Atterraggio previsto allo scadere del tempo.`);
+                logEvent(`🚁 L'Elicottero Finale è in avvicinamento su ${exfilCode} (${targetBase.name}).`);
             }
 
-            if (timeLeftMs <= 0) {
+            // MORTE E FINE PARTITA: 30 secondi DOPO lo zero (alla partenza dell'elicottero)
+            if (timeLeftMs <= -30000) {
                 isGameOver = true;
                 document.getElementById('time-left').innerText = "00:00";
                 document.getElementById('time-left').style.color = "#f00";
-                if(myStatus === 'active' || myStatus === 'down') { speakTactical("Tempo scaduto. Sei K.I.A."); setStatus('dead'); }
-                update(ref(db, 'dmz_settings'), { status: 'lobby' }); // Il primo dispositivo fa spegnere il server per tutti
-                push(ref(db, 'dmz_logs'), { msg: "Tempo Limite Scaduto. Partita Terminata.", timestamp: Date.now() });
+                if(myStatus === 'active' || myStatus === 'down') { speakTactical("Tempo scaduto. L'elicottero è decollato. Sei K.I.A."); setStatus('dead'); }
+                update(ref(db, 'dmz_settings'), { status: 'lobby' }); // Il primo dispositivo spegne per tutti
+                push(ref(db, 'dmz_logs'), { msg: "Elicottero decollato. Partita Terminata.", timestamp: Date.now() });
             } else {
-                document.getElementById('time-left').innerText = formatTime(timeLeftMs);
-                if (timeLeftMs < 300000) document.getElementById('time-left').style.color = "#f00"; 
+                if (timeLeftMs <= 0) {
+                    // SIAMO NEI 30 SECONDI DI OVERTIME (IMBARCO!)
+                    let overtimeMs = 30000 + timeLeftMs; // Conta alla rovescia da 30 a 0
+                    document.getElementById('time-left').innerText = `DECOLLO: ${Math.ceil(overtimeMs/1000)}s`;
+                    document.getElementById('time-left').style.color = "#f0f"; // Colore Viola/Fucsia per panico
+                } else {
+                    // CONTO ALLA ROVESCIA NORMALE
+                    document.getElementById('time-left').innerText = formatTime(timeLeftMs);
+                    if (timeLeftMs < 120000) document.getElementById('time-left').style.color = "#f00"; 
+                }
             }
         }
 
@@ -1209,10 +1283,31 @@ window.showEndGameScreen = function(reason) {
                 if (ex.callerTeam === myTeam) speakTactical(`L'elicottero è ripartito.`);
             }
         });
+// FASE 3: NOTIFICHE AUDIO E POPUP PER I DROP LOGISTICI
+        if (!window.dropAudioStates) window.dropAudioStates = {};
+        if(activeStreaks.drops) {
+            Object.keys(activeStreaks.drops).forEach(k => {
+                let drop = activeStreaks.drops[k];
+                if (!window.dropAudioStates[k]) window.dropAudioStates[k] = { called: false, landed: false };
+                let stD = window.dropAudioStates[k];
+                let arrAt = drop.arriveAt || drop.timestamp;
 
+                if (!stD.called && now < arrAt) {
+                    stD.called = true;
+                    if (drop.team !== myTeam) {
+                        speakTactical(`Rilevato lancio logistico nemico in ingresso sulla cassa ${k}.`);
+                        tacticalAlert(`Un Lancio Rifornimenti nemico è in arrivo sull'armadietto ${k}!\nControlla la mappa tattica e preparati all'assalto.`, "DROP RILEVATO");
+                    }
+                }
+                if (!stD.landed && now >= arrAt && now < arrAt + 600000) {
+                    stD.landed = true;
+                    speakTactical(`Lancio rifornimenti atterrato alla cassa ${k}.`);
+                }
+            });
+        }
       if (myContract && myContract.type === 'DESTROY' && myContract.state === 'ARMED') { if (myStatus !== 'active') { myContract = null; } else if (Math.ceil((myContract.endTime - now) / 1000) <= 0) { tacticalAlert("BOOM! Scorte distrutte!\n+$10000", "SUCCESS", true); myCash += 10000; myContractsDone++; updateEconomyHUD(); myContract = null; logEvent(`💥 Scorte distrutte (Contratto completato).`); } }
 
-        if (myContract && ((myContract.type === 'INTEL' || myContract.type === 'NUKE') && myContract.state === 'FETCH' || myContract.type === 'CARGO')) {
+if (myContract && ((myContract.type === 'INTEL' || myContract.type === 'NUKE') && myContract.state === 'FETCH' || myContract.type === 'CARGO')) {
             if (!window.contractCircle) { window.contractCircle = L.circle([myContract.targetLat, myContract.targetLng], {color: '#ff0', fillColor: '#ff0', fillOpacity: 0.2, radius: 30, dashArray: '10, 10'}).addTo(map); }
             else { window.contractCircle.setLatLng([myContract.targetLat, myContract.targetLng]); }
         } else if (window.contractCircle) { map.removeLayer(window.contractCircle); window.contractCircle = null; }
@@ -1249,15 +1344,7 @@ window.showEndGameScreen = function(reason) {
 
             if(!window.safeZoneCircle) { window.safeZoneCircle = L.circle(centerLL, {color:'#f0f', weight:2, fillOpacity:0.05, dashArray:'5,5'}).addTo(map); } else { window.safeZoneCircle.setLatLng(centerLL); window.safeZoneCircle.setRadius(currentRadius); }
             
-            // FASE 2: ELICOTTERO FINALE AL CENTRO DEL GAS
-            if (currentRadius <= radii[radii.length-1] && !window.finalExfilTriggered && globalSettings.status === 'running') {
-                window.finalExfilTriggered = true;
-                update(ref(db, 'dmz_exfils/FINAL_EXFIL'), {
-                    calledAt: now, arriveAt: now + 30000, departAt: now + 120000, callerTeam: "SYSTEM",
-                    lat: centerLL.lat, lng: centerLL.lng
-                });
-                speakTactical("Attenzione. Gas al massimo livello. Elicottero di estrazione finale in arrivo al centro.");
-            }
+           
 
             if(myMarker) {
                 inGas = centerLL.distanceTo(myMarker.getLatLng()) > currentRadius;
@@ -1285,7 +1372,7 @@ window.showEndGameScreen = function(reason) {
         let osText = (globalSettings.exfil_config && globalSettings.exfil_config.enabled) ? "OBIETTIVO: ESTRAZIONE" : "OBIETTIVO: SOPRAVVIVENZA"; let osColor = "#0f0";
         if (window.currentGlobalUavState) { osText = "⚠️ RADAR ATTIVO"; osColor = "#0ff"; }
         
-   if (myContract) { 
+     if (myContract) { 
             if (((myContract.type === 'NUKE' || myContract.type === 'INTEL') && myContract.state === 'FETCH' || myContract.type === 'CARGO') && myMarker) {
                 let dist = Math.round(myMarker.getLatLng().distanceTo([myContract.targetLat, myContract.targetLng]));
                 let icon = myContract.type === 'NUKE' ? '☢️' : (myContract.type === 'CARGO' ? '🚚' : '💾');
